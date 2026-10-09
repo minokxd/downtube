@@ -12,6 +12,7 @@ import type {
 
 export const IPC = {
   appInfo: 'app:info',
+  appFreeSpace: 'app:free-space',
   setTitleBarTheme: 'app:set-titlebar-theme',
   engineStatus: 'engine:status',
   engineInstall: 'engine:install',
@@ -46,6 +47,8 @@ export type SettingsPatch = Partial<Omit<Settings, 'downloadDir' | 'lastYtdlpUpd
 export interface DowntubeApi {
   app: {
     info(): Promise<{ version: string; libraryRecovered: 'none' | 'backup' | 'reset' }>;
+    /** Free bytes on the download folder's drive, or null when it cannot be read. */
+    freeSpace(): Promise<number | null>;
     setTitleBarTheme(theme: 'dark' | 'light'): Promise<void>;
   };
   engine: {

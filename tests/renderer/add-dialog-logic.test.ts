@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { LibraryItem, ProbeEntry, ProbeList, ProbeVideo } from '@shared/types';
-import { inLibraryIds, listJobs, listSubmitIds, mergeEntries, playlistUrl, videoJob } from '../../src/renderer/src/components/add-dialog-logic';
+import { estimateBytes } from '@shared/size-estimate';
+import {
+  inLibraryIds,
+  listJobs,
+  listSize,
+  listSubmitIds,
+  mergeEntries,
+  playlistUrl,
+  videoJob,
+  videoSize,
+} from '../../src/renderer/src/components/add-dialog-logic';
 
 const video: ProbeVideo = {
   videoId: 'jNQXAC9IVRw',
@@ -98,5 +108,55 @@ describe('inLibraryIds', () => {
 describe('playlistUrl', () => {
   it('builds a playlist link', () => {
     expect(playlistUrl('PL_1')).toBe('https://www.youtube.com/playlist?list=PL_1');
+  });
+});
+
+describe('videoSize', () => {
+  const sized: ProbeVideo = { ...video, durationSec: 100, sizes: { best: 900, '1080': 500 } };
+
+  it("uses YouTube's size for the chosen quality", () => {
+    expect(videoSize(sized, 'video', '1080')).toEqual({ bytes: 500, estimated: false, atLeast: false });
+  });
+
+  it('estimates from the duration when YouTube gave no size for that quality', () => {
+    expect(videoSize(sized, 'video', '720')).toEqual({ bytes: estimateBytes(100, 'video', '720'), estimated: true, atLeast: false });
+  });
+
+  it('always estimates an mp3, since conversion decides its size', () => {
+    expect(videoSize(sized, 'audio', '1080')).toEqual({ bytes: estimateBytes(100, 'audio', '1080'), estimated: true, atLeast: false });
+  });
+
+  it('has nothing to show without sizes or a duration', () => {
+    expect(videoSize(video, 'video', '1080')).toBeUndefined();
+  });
+});
+
+describe('listSize', () => {
+  const timed = (id: string, durationSec?: number): ProbeEntry => ({ ...entry(id), durationSec });
+
+  it('adds up the estimates of the chosen entries', () => {
+    expect(listSize([timed('a', 60), timed('b', 120)], 'audio', '1080')).toEqual({
+      bytes: estimateBytes(180, 'audio', '1080'),
+      estimated: true,
+      atLeast: false,
+    });
+  });
+
+  it('says "at least" when some durations are unknown', () => {
+    expect(listSize([timed('a', 60), timed('b')], 'video', '720')).toEqual({
+      bytes: estimateBytes(60, 'video', '720'),
+      estimated: true,
+      atLeast: true,
+    });
+  });
+
+  it('says "at least" for best video, which is counted as 1080p', () => {
+    expect(listSize([timed('a', 60)], 'video', 'best')?.atLeast).toBe(true);
+    expect(listSize([timed('a', 60)], 'audio', 'best')?.atLeast).toBe(false);
+  });
+
+  it('has nothing to show when no duration is known', () => {
+    expect(listSize([timed('a')], 'video', '1080')).toBeUndefined();
+    expect(listSize([], 'video', '1080')).toBeUndefined();
   });
 });

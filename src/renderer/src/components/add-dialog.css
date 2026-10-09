@@ -206,3 +206,29 @@
   color: var(--text-muted);
   font-size: 13px;
 }
+
+/* Size and free space sit at the footer's start, next to the download button. */
+.add-dialog .dialog-footer {
+  align-items: center;
+}
+
+.add-size {
+  display: grid;
+  gap: 2px;
+  margin-right: auto;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.add-size-total {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.add-size-warning {
+  color: var(--warning);
+  font-weight: 500;
+}

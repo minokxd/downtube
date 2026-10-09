@@ -8,6 +8,7 @@ import {
   baseArgs,
   buildDownloadArgs,
   buildProbeArgs,
+  formatSortFor,
   outputDirFor,
   type DownloadArgsInput,
   type EnginePaths,
@@ -123,10 +124,16 @@ describe('buildProbeArgs', () => {
     expect(args.slice(-2)).toEqual(['--', URL]);
   });
 
+  it("sorts a single video's formats the way a best-quality download picks them", () => {
+    const args = buildProbeArgs(engine, { url: URL, list: false });
+    expect(valueAfter(args, '-S')).toBe(formatSortFor('best'));
+  });
+
   it('flat-extracts one page of a list', () => {
     const args = buildProbeArgs(engine, { url: 'https://www.youtube.com/@jawed/videos', list: true, start: 101, end: 200 });
     expect(args).toContain('--flat-playlist');
     expect(valueAfter(args, '-I')).toBe('101:200');
+    expect(args).not.toContain('-S');
   });
 });
 

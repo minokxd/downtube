@@ -30,6 +30,7 @@
   --on-accent: #1e1a33;
   --danger: #f87171;
   --danger-soft: rgba(248, 113, 113, 0.14);
+  --warning: #fbbf24;
   --success: #86efac;
   --overlay: rgba(8, 8, 10, 0.72);
   --shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
@@ -54,6 +55,7 @@
   --on-accent: #fdf6ef;
   --danger: #b42318;
   --danger-soft: rgba(180, 35, 24, 0.1);
+  --warning: #8a5a00;
   --success: #3f7d4e;
   --overlay: rgba(42, 36, 32, 0.45);
   --shadow: 0 16px 48px rgba(60, 40, 20, 0.18);

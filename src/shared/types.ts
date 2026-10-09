@@ -125,6 +125,8 @@ export interface ProbeVideo extends ProbeEntry {
   channel: string;
   heights: number[];
   hasSubtitles: boolean;
+  /** Bytes a video download would fetch per quality; a quality is missing when YouTube gave no size. */
+  sizes?: Partial<Record<Quality, number>>;
   listId?: string;
 }
 

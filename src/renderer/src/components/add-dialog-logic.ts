@@ -1,9 +1,37 @@
+import { estimateBytes } from '@shared/size-estimate';
 import type { LibraryItem, MediaKind, NewJobInput, ProbeEntry, ProbeList, ProbeVideo, Quality } from '@shared/types';
 
 export interface DownloadChoice {
   kind: MediaKind;
   quality: Quality;
   subtitles: boolean;
+}
+
+export interface SizeInfo {
+  bytes: number;
+  /** Worked out from durations rather than YouTube's file list. */
+  estimated: boolean;
+  /** The real total is higher: some durations are unknown, or best video was counted as 1080p. */
+  atLeast: boolean;
+}
+
+/** Duration-based total for playlist/channel entries; undefined when no duration is known. */
+export function listSize(entries: readonly ProbeEntry[], kind: MediaKind, quality: Quality): SizeInfo | undefined {
+  let bytes = 0;
+  let counted = 0;
+  for (const entry of entries) {
+    if (entry.durationSec === undefined) continue;
+    bytes += estimateBytes(entry.durationSec, kind, quality);
+    counted += 1;
+  }
+  if (counted === 0) return undefined;
+  return { bytes, estimated: true, atLeast: counted < entries.length || (kind === 'video' && quality === 'best') };
+}
+
+/** YouTube's size for the chosen video quality; otherwise (and always for mp3) the duration estimate. */
+export function videoSize(video: ProbeVideo, kind: MediaKind, quality: Quality): SizeInfo | undefined {
+  const bytes = kind === 'video' ? video.sizes?.[quality] : undefined;
+  return bytes !== undefined ? { bytes, estimated: false, atLeast: false } : listSize([video], kind, quality);
 }
 
 export function inLibraryIds(items: readonly LibraryItem[], kind: MediaKind): Set<string> {

@@ -10,6 +10,7 @@ function subscribe<T>(channel: string, callback: (payload: T) => void): Unsubscr
 const api: DowntubeApi = {
   app: {
     info: () => ipcRenderer.invoke(IPC.appInfo),
+    freeSpace: () => ipcRenderer.invoke(IPC.appFreeSpace),
     setTitleBarTheme: (theme) => ipcRenderer.invoke(IPC.setTitleBarTheme, theme),
   },
   engine: {

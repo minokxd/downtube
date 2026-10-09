@@ -79,7 +79,8 @@ export function buildDownloadArgs(engine: EnginePaths, input: DownloadArgsInput)
 export function buildProbeArgs(engine: EnginePaths, target: ProbeTarget): string[] {
   const args = [...baseArgs(engine), '-J'];
   if (target.list) args.push('--flat-playlist', '-I', `${target.start}:${target.end}`);
-  else args.push('--no-playlist');
+  // The download's sort orders `formats` worst → best, so the probe can tell what each quality would fetch.
+  else args.push('--no-playlist', '-S', formatSortFor('best'));
   args.push('--', target.url);
   return args;
 }

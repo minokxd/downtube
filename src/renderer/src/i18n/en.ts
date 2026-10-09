@@ -66,6 +66,11 @@ export const en: Record<MessageKey, string> = {
   'add.alreadyInLibrary': 'This is already in your library.',
   'add.emptyList': 'This list has no downloadable videos.',
   'add.viewDownloads': 'View',
+  'add.size': 'Size: {size}',
+  'add.sizeEstimate': 'Estimated size: ≈ {size}',
+  'add.sizeAtLeast': 'Estimated size: at least {size}',
+  'add.freeSpace': 'Free space: {size}',
+  'add.lowSpace': 'There may not be enough free disk space.',
 
   'library.title': 'Library',
   'library.tab.all': 'All',

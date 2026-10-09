@@ -1,6 +1,7 @@
 import { BrowserWindow, app, dialog, ipcMain, shell } from 'electron';
 import { IPC } from '@shared/ipc-contract';
 import type { EngineStatus, ProbeResponse } from '@shared/types';
+import { freeBytes } from './disk';
 import {
   IpcValidationError,
   assertBoolean,
@@ -26,6 +27,7 @@ export function registerIpc(services: Services, getWindow: () => BrowserWindow |
   let installing: Promise<EngineStatus> | null = null;
 
   ipcMain.handle(IPC.appInfo, () => ({ version: app.getVersion(), libraryRecovered: services.library.recovered }));
+  ipcMain.handle(IPC.appFreeSpace, () => freeBytes(services.settings.get().downloadDir));
   ipcMain.handle(IPC.setTitleBarTheme, (_event, theme: unknown) => applyTitleBarTheme(getWindow(), assertTheme(theme)));
 
   ipcMain.handle(IPC.engineStatus, () => services.engine.status());

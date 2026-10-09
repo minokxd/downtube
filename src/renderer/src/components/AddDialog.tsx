@@ -11,13 +11,13 @@ import {
   type ProbeVideo,
   type Quality,
 } from '@shared/types';
-import { useT } from '../i18n';
+import { useLocale, useT } from '../i18n';
 import { ERROR_LABEL, QUALITY_LABEL } from '../i18n/labels';
-import { formatDuration } from '../lib/format';
+import { formatBytes, formatDuration } from '../lib/format';
 import { useLibrary } from '../stores/library';
 import { useSettings } from '../stores/settings';
 import { useUi } from '../stores/ui';
-import { inLibraryIds, listJobs, listSubmitIds, mergeEntries, playlistUrl, videoJob } from './add-dialog-logic';
+import { inLibraryIds, listJobs, listSize, listSubmitIds, mergeEntries, playlistUrl, videoJob, videoSize } from './add-dialog-logic';
 import { Segmented, Switch } from './controls';
 import { Thumb } from './Thumb';
 import './add-dialog.css';
@@ -36,6 +36,7 @@ export function AddDialog() {
 
 function AddDialogContent({ url }: { url: string }) {
   const t = useT();
+  const locale = useLocale();
   const close = useUi((s) => s.closeAdd);
   const pushToast = useUi((s) => s.pushToast);
   const setPage = useUi((s) => s.setPage);
@@ -50,7 +51,21 @@ function AddDialogContent({ url }: { url: string }) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  const [free, setFree] = useState<number | null>(null);
   const owned = useMemo(() => inLibraryIds(items, kind), [items, kind]);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.downtube.app.freeSpace().then(
+      (bytes) => {
+        if (!cancelled) setFree(bytes);
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +112,13 @@ function AddDialogContent({ url }: { url: string }) {
   const qualityOptions = state.phase === 'video' ? availableQualities(state.video.heights) : QUALITIES;
   const canSubmit =
     !submitting && (state.phase === 'video' ? !owned.has(state.video.videoId) : state.phase === 'list' && chosen.length > 0);
+  const size =
+    state.phase === 'video'
+      ? videoSize(state.video, kind, quality)
+      : state.phase === 'list'
+        ? listSize(chosen, kind, quality)
+        : undefined;
+  const lowSpace = size !== undefined && free !== null && size.bytes > free;
 
   const toggle = (videoId: string): void => {
     setSelected((current) => {
@@ -327,6 +349,17 @@ function AddDialogContent({ url }: { url: string }) {
         </div>
         <div className="dialog-body">{body}</div>
         <div className="dialog-footer">
+          {size && (
+            <div className="add-size">
+              <span className="add-size-total">
+                {t(size.atLeast ? 'add.sizeAtLeast' : size.estimated ? 'add.sizeEstimate' : 'add.size', {
+                  size: formatBytes(size.bytes, locale),
+                })}
+              </span>
+              {free !== null && <span>{t('add.freeSpace', { size: formatBytes(free, locale) })}</span>}
+              {lowSpace && <span className="add-size-warning">{t('add.lowSpace')}</span>}
+            </div>
+          )}
           <button type="button" className="btn btn-ghost" onClick={close}>
             {t('common.cancel')}
           </button>

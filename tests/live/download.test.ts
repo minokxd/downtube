@@ -36,6 +36,7 @@ describe('live yt-dlp', () => {
     if (result.type !== 'video') return;
     expect(result.video.title).toBe('Me at the zoo');
     expect(result.video.durationSec).toBe(19);
+    expect(result.video.sizes?.best).toBeGreaterThan(10_000);
   });
 
   it('probes the channel', async () => {

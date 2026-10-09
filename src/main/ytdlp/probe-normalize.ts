@@ -1,4 +1,4 @@
-import type { CollectionKind, ProbeEntry, ProbeList, ProbeVideo } from '@shared/types';
+import { QUALITIES, type CollectionKind, type ProbeEntry, type ProbeList, type ProbeVideo, type Quality } from '@shared/types';
 import { VIDEO_ID_RE } from '@shared/youtube-url';
 import { YtdlpError } from './errors';
 
@@ -20,6 +20,47 @@ export function pickThumbnail(json: Json): string | undefined {
     if (!best || width >= best.width) best = { url, width };
   }
   return best?.url ?? str(json.thumbnail);
+}
+
+const hasVideo = (f: Json): boolean => typeof f.vcodec === 'string' && f.vcodec !== 'none';
+const hasAudio = (f: Json): boolean => typeof f.acodec === 'string' && f.acodec !== 'none';
+
+// yt-dlp's `res` is the smaller side, so a 1080×1920 short counts as 1080p.
+function resolutionOf(f: Json): number | undefined {
+  const height = num(f.height);
+  const width = num(f.width);
+  return height !== undefined && width !== undefined ? Math.min(width, height) : height;
+}
+
+function bytesOf(f: Json, durationSec: number | undefined): number | undefined {
+  const size = num(f.filesize) ?? num(f.filesize_approx);
+  if (size !== undefined) return size;
+  const kbps = num(f.tbr);
+  return kbps !== undefined && durationSec !== undefined ? Math.round((kbps * 1000 * durationSec) / 8) : undefined;
+}
+
+/**
+ * Bytes each quality would download. The probe sorts `formats` with the download's -S (worst → best),
+ * so for a quality cap yt-dlp takes the last video format that fits, plus the best audio-only format
+ * unless that video already carries audio.
+ */
+function sizesByQuality(formats: Json[], durationSec: number | undefined): Partial<Record<Quality, number>> {
+  const audio = formats.filter((f) => hasAudio(f) && !hasVideo(f)).at(-1);
+  const sizes: Partial<Record<Quality, number>> = {};
+  for (const quality of QUALITIES) {
+    const cap = quality === 'best' ? Infinity : Number(quality);
+    const pick = formats
+      .filter((f) => {
+        const resolution = resolutionOf(f);
+        return hasVideo(f) && resolution !== undefined && resolution <= cap;
+      })
+      .at(-1);
+    if (!pick) continue;
+    const videoBytes = bytesOf(pick, durationSec);
+    const audioBytes = hasAudio(pick) || !audio ? 0 : bytesOf(audio, durationSec);
+    if (videoBytes !== undefined && audioBytes !== undefined) sizes[quality] = videoBytes + audioBytes;
+  }
+  return sizes;
 }
 
 export function normalizeVideo(raw: unknown, listId?: string): ProbeVideo {
@@ -45,6 +86,8 @@ export function normalizeVideo(raw: unknown, listId?: string): ProbeVideo {
     heights,
     hasSubtitles: subtitles.length > 0,
   };
+  const sizes = sizesByQuality(formats, video.durationSec);
+  if (Object.keys(sizes).length > 0) video.sizes = sizes;
   if (listId) video.listId = listId;
   return video;
 }

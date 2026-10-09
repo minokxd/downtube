@@ -64,6 +64,11 @@ export const tr = {
   'add.alreadyInLibrary': 'Bu zaten kütüphanende.',
   'add.emptyList': 'Bu listede indirilebilir video yok.',
   'add.viewDownloads': 'Görüntüle',
+  'add.size': 'Boyut: {size}',
+  'add.sizeEstimate': 'Tahmini boyut: ≈ {size}',
+  'add.sizeAtLeast': 'Tahmini boyut: en az {size}',
+  'add.freeSpace': 'Boş alan: {size}',
+  'add.lowSpace': 'Diskte yeterli boş alan olmayabilir.',
 
   'library.title': 'Kütüphane',
   'library.tab.all': 'Tümü',
