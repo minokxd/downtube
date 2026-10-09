@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { promises as fs } from 'node:fs';
 import type { Collection, JobCollectionRef, LibraryItem, LibrarySnapshot, MediaKind, SubtitleTrack } from '@shared/types';
 import { JsonFile, type RecoveryState } from '../json-store';
 import type { DoneInfo } from '../ytdlp/output';
@@ -52,6 +53,19 @@ function isCollection(value: unknown): value is Collection {
     c.positions !== null
   );
 }
+
+// Only a missing path counts as "already gone". Any other access error is left for
+// trash to report, so a locked or unreadable file is never dropped silently.
+async function existsOnDisk(path: string): Promise<boolean> {
+  try {
+    await fs.access(path);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code !== 'ENOENT';
+  }
+}
+
+const errorMessage = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
 export function sanitizeLibrary(raw: unknown): LibraryData {
   if (typeof raw !== 'object' || raw === null) return emptyData();
@@ -155,9 +169,26 @@ export class LibraryStore {
   async remove(id: string, deleteFiles: boolean, trash: (path: string) => Promise<void>): Promise<void> {
     const item = this.get(id);
     if (!item) return;
+    const leftovers: string[] = [];
     if (deleteFiles) {
-      const files = [item.filePath, item.thumbPath, ...item.subtitles.map((s) => s.path)];
-      for (const path of files) if (path) await trash(path).catch(() => undefined);
+      // The media file goes first: if it cannot be trashed, the library stays unchanged.
+      if (await existsOnDisk(item.filePath)) {
+        try {
+          await trash(item.filePath);
+        } catch (err) {
+          throw new Error(`Could not move ${item.filePath} to the trash: ${errorMessage(err)}`, { cause: err });
+        }
+      }
+      // Sidecars are best effort: keep going past failures and report them after the commit.
+      const sidecars = [item.thumbPath, ...item.subtitles.map((s) => s.path)];
+      for (const path of sidecars) {
+        if (!path || !(await existsOnDisk(path))) continue;
+        try {
+          await trash(path);
+        } catch {
+          leftovers.push(path);
+        }
+      }
     }
     this.data.items = this.data.items.filter((i) => i.id !== id);
     for (const collection of this.data.collections) {
@@ -170,6 +201,7 @@ export class LibraryStore {
     }
     this.data.collections = this.data.collections.filter((c) => c.itemIds.length > 0);
     await this.commit();
+    if (leftovers.length > 0) throw new Error(`Could not move these files to the trash: ${leftovers.join(', ')}`);
   }
 
   async saveProgress(id: string, positionSec: number, durationSec?: number): Promise<void> {

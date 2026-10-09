@@ -100,9 +100,12 @@ describe('LibraryStore', () => {
         subtitles: [{ lang: 'en', label: 'en', path: join(dir, 'x.en.vtt') }],
       }),
     );
-    const trash = vi.fn(async () => undefined);
+    const thumb = join(dir, 'jNQXAC9IVRw.jpg');
+    const sub = join(dir, 'x.en.vtt');
+    for (const path of [item.filePath, thumb, sub]) await writeFile(path, 'x');
+    const trash = vi.fn(async (_path: string) => undefined);
     await store.remove(item.id, true, trash);
-    expect(trash).toHaveBeenCalledTimes(3);
+    expect(trash.mock.calls).toEqual([[item.filePath], [thumb], [sub]]);
     expect(store.snapshot()).toEqual({ items: [], collections: [] });
   });
 
@@ -112,6 +115,54 @@ describe('LibraryStore', () => {
     const trash = vi.fn(async () => undefined);
     await store.remove(item.id, false, trash);
     expect(trash).not.toHaveBeenCalled();
+  });
+
+  it('keeps the item and its collection when the media file cannot be trashed', async () => {
+    const store = await LibraryStore.open(file);
+    const item = await store.addFromDownload(input({ collection: { youtubeId: 'PL1', kind: 'playlist', title: 'x', index: 0 } }));
+    await writeFile(item.filePath, 'x');
+    const before = store.snapshot();
+    const trash = vi.fn(async (_path: string) => {
+      throw new Error('EBUSY: resource busy or locked');
+    });
+    await expect(store.remove(item.id, true, trash)).rejects.toThrow(item.filePath);
+    expect(store.snapshot()).toEqual(before);
+    const reopened = await LibraryStore.open(file);
+    expect(reopened.get(item.id)?.title).toBe('Title jNQXAC9IVRw');
+    expect(reopened.snapshot()).toEqual(before);
+  });
+
+  it('does not trash paths that are already gone', async () => {
+    const store = await LibraryStore.open(file);
+    const item = await store.addFromDownload(input({ subtitles: [{ lang: 'en', label: 'en', path: join(dir, 'jNQXAC9IVRw.en.vtt') }] }));
+    await writeFile(item.filePath, 'x');
+    const trash = vi.fn(async (_path: string) => undefined);
+    await store.remove(item.id, true, trash);
+    expect(trash.mock.calls).toEqual([[item.filePath]]);
+    expect(store.snapshot().items).toEqual([]);
+  });
+
+  it('removes the item but reports sidecars that could not be trashed, without stopping at the first failure', async () => {
+    const store = await LibraryStore.open(file);
+    const thumb = join(dir, 'jNQXAC9IVRw.jpg');
+    const enPath = join(dir, 'jNQXAC9IVRw.en.vtt');
+    const trPath = join(dir, 'jNQXAC9IVRw.tr.vtt');
+    const item = await store.addFromDownload(
+      input({
+        subtitles: [
+          { lang: 'en', label: 'en', path: enPath },
+          { lang: 'tr', label: 'tr', path: trPath },
+        ],
+      }),
+    );
+    for (const path of [item.filePath, thumb, enPath, trPath]) await writeFile(path, 'x');
+    const trash = vi.fn(async (path: string) => {
+      if (path === enPath) throw new Error('EBUSY: resource busy or locked');
+    });
+    await expect(store.remove(item.id, true, trash)).rejects.toThrow(enPath);
+    expect(store.get(item.id)).toBeUndefined();
+    expect(store.snapshot()).toEqual({ items: [], collections: [] });
+    expect(trash.mock.calls.map(([path]) => path)).toEqual([item.filePath, thumb, enPath, trPath]);
   });
 
   it('marks items completed near the end and learns the duration', async () => {
