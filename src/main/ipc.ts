@@ -8,6 +8,7 @@ import {
   assertJobInputs,
   assertOptionalDuration,
   assertPosition,
+  assertSettingsPatch,
   assertStart,
   assertTheme,
   assertYoutubeUrl,
@@ -29,14 +30,18 @@ export function registerIpc(services: Services, getWindow: () => BrowserWindow |
 
   ipcMain.handle(IPC.engineStatus, () => services.engine.status());
   ipcMain.handle(IPC.engineInstall, (_event, force: unknown) => {
-    const reinstall = force === true;
-    if (reinstall && !services.queue.isIdle()) throw new Error('busy');
-    installing ??= services.engine
-      .install((progress) => send(IPC.engineProgress, progress), reinstall)
-      .finally(() => {
-        installing = null;
-        services.queue.pump();
-      });
+    // Joining an install that is already running is always fine.
+    if (installing) return installing;
+    // Replacing a component can hit a running executable, so wait for an idle queue and no
+    // yt-dlp update. Marking the service as updating for the whole install stops the queue from
+    // starting downloads and makes runYtdlpUpdate answer 'busy' until the install finishes.
+    if (!services.queue.isIdle() || services.isUpdating()) throw new Error('busy');
+    services.setUpdating(true);
+    installing = services.engine.install((progress) => send(IPC.engineProgress, progress), force === true).finally(() => {
+      installing = null;
+      services.setUpdating(false);
+      services.queue.pump();
+    });
     return installing;
   });
   ipcMain.handle(IPC.engineUpdate, () => runYtdlpUpdate(services));
@@ -73,7 +78,7 @@ export function registerIpc(services: Services, getWindow: () => BrowserWindow |
   });
 
   ipcMain.handle(IPC.settingsGet, () => services.settings.get());
-  ipcMain.handle(IPC.settingsUpdate, (_event, patch: unknown) => services.settings.update(patch));
+  ipcMain.handle(IPC.settingsUpdate, (_event, patch: unknown) => services.settings.update(assertSettingsPatch(patch)));
   ipcMain.handle(IPC.settingsChooseDir, async () => {
     const win = getWindow();
     const options: Electron.OpenDialogOptions = {

@@ -71,7 +71,8 @@ export interface DowntubeApi {
   };
   settings: {
     get(): Promise<Settings>;
-    update(patch: Partial<Settings>): Promise<Settings>;
+    // The download folder is only set through chooseDownloadDir; the UI never sends file paths.
+    update(patch: Partial<Omit<Settings, 'downloadDir' | 'lastYtdlpUpdateCheck'>>): Promise<Settings>;
     chooseDownloadDir(): Promise<string | null>;
     onChanged(callback: (settings: Settings) => void): Unsubscribe;
   };

@@ -6,6 +6,7 @@ import {
   assertJobInputs,
   assertOptionalDuration,
   assertPosition,
+  assertSettingsPatch,
   assertStart,
   assertTheme,
   assertYoutubeUrl,
@@ -72,7 +73,48 @@ describe('assertJobInputs', () => {
     [[{ ...job, thumbnailUrl: 'http://insecure.example/x.jpg' }]],
     [[{ ...job, collection: { ...job.collection, index: -1 } }]],
     [Array.from({ length: 501 }, () => job)],
+    // The url must be a single video that matches videoId, never a playlist or channel.
+    [[{ ...job, url: 'https://www.youtube.com/playlist?list=PL_x-1' }]],
+    [[{ ...job, url: 'https://www.youtube.com/@jawed' }]],
+    [[{ ...job, url: 'https://www.youtube.com/watch?v=aaaaaaaaaaa' }]],
   ])('rejects case %#', (value) => {
     expect(() => assertJobInputs(value)).toThrow(IpcValidationError);
+  });
+
+  it('normalizes a share link to the canonical watch URL', () => {
+    const [result] = assertJobInputs([{ ...job, url: 'https://youtu.be/jNQXAC9IVRw?si=x' }]);
+    expect(result?.url).toBe('https://www.youtube.com/watch?v=jNQXAC9IVRw');
+    expect(result?.videoId).toBe('jNQXAC9IVRw');
+  });
+
+  it('drops the list parameter of a video inside a playlist', () => {
+    const [result] = assertJobInputs([{ ...job, url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw&list=PL_x-1&index=3' }]);
+    expect(result?.url).toBe('https://www.youtube.com/watch?v=jNQXAC9IVRw');
+  });
+});
+
+describe('assertSettingsPatch', () => {
+  it('passes a plain patch through for SettingsStore to validate', () => {
+    const patch = { theme: 'dark' };
+    expect(assertSettingsPatch(patch)).toBe(patch);
+    expect(assertSettingsPatch({})).toEqual({});
+  });
+
+  it.each([
+    [{ downloadDir: 'C:\\x' }],
+    [{ downloadDir: '\\\\attacker\\share' }],
+    [{ theme: 'dark', downloadDir: 'C:\\x' }],
+    [{ downloadDir: undefined }],
+    [{ lastYtdlpUpdateCheck: '2026-01-01T00:00:00Z' }],
+    [{ lastYtdlpUpdateCheck: '9999-01-01' }],
+    [null],
+    [undefined],
+    [[]],
+    [[{ theme: 'dark' }]],
+    ['theme'],
+    [42],
+    [new Date()],
+  ])('rejects %#', (value) => {
+    expect(() => assertSettingsPatch(value)).toThrow(IpcValidationError);
   });
 });

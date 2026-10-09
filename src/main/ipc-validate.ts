@@ -1,4 +1,4 @@
-import { QUALITIES, type NewJobInput, type Quality } from '@shared/types';
+import { QUALITIES, type NewJobInput, type Quality, type Settings } from '@shared/types';
 import { VIDEO_ID_RE, classifyUrl } from '@shared/youtube-url';
 
 export class IpcValidationError extends Error {
@@ -41,13 +41,29 @@ export function assertTheme(value: unknown): 'dark' | 'light' {
   return value === 'dark' || value === 'light' ? value : fail('invalid theme');
 }
 
+// The renderer never sends file paths or the update timestamp: the download folder is only
+// set through the native folder dialog in the main process, and the timestamp only by the updater.
+const MAIN_ONLY_SETTINGS = ['downloadDir', 'lastYtdlpUpdateCheck'];
+
+// Field-level validation stays in SettingsStore.
+export function assertSettingsPatch(value: unknown): Partial<Settings> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return fail('invalid settings patch');
+  const proto = Object.getPrototypeOf(value);
+  if (proto !== Object.prototype && proto !== null) return fail('invalid settings patch');
+  if (MAIN_ONLY_SETTINGS.some((key) => Object.hasOwn(value, key))) return fail('setting cannot be changed from the renderer');
+  return value as Partial<Settings>;
+}
+
 const isText = (value: unknown, max: number): value is string => typeof value === 'string' && value.length <= max;
 
 function assertJobInput(value: unknown): NewJobInput {
   if (typeof value !== 'object' || value === null) return fail('invalid job');
   const v = value as Record<string, unknown>;
-  const url = assertYoutubeUrl(v.url);
   const videoId = typeof v.videoId === 'string' && VIDEO_ID_RE.test(v.videoId) ? v.videoId : fail('invalid video id');
+  // A job is exactly one video: a playlist or channel URL would download everything, and the
+  // library/queue bookkeeping is keyed by videoId. The canonical watch URL is what gets stored.
+  const info = classifyUrl(assertYoutubeUrl(v.url));
+  const url = info.kind === 'video' && info.videoId === videoId ? info.url : fail('url does not match video id');
   const title = isText(v.title, 500) ? v.title.trim() || videoId : fail('invalid title');
   const kind = v.kind === 'video' || v.kind === 'audio' ? v.kind : fail('invalid kind');
   const quality = QUALITIES.includes(v.quality as Quality) ? (v.quality as Quality) : fail('invalid quality');
