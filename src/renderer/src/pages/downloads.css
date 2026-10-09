@@ -1,0 +1,115 @@
+.job-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) 56px auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.job-thumb {
+  width: 112px;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.job-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.job-title {
+  overflow: hidden;
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.job-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.job-status {
+  font-weight: 500;
+}
+
+.status-downloading,
+.status-processing {
+  color: var(--accent);
+}
+
+.status-done {
+  color: var(--success);
+}
+
+.status-failed {
+  color: var(--danger);
+}
+
+.job-detail {
+  font-variant-numeric: tabular-nums;
+}
+
+.job-detail::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--text-faint);
+}
+
+.job-percent {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.job-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.job-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.job-log {
+  max-height: 200px;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-muted);
+  font: 12px/1.5 var(--font-mono);
+  white-space: pre-wrap;
+}
+
+.job-done,
+.job-canceled {
+  opacity: 0.85;
+}
