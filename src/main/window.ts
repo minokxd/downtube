@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { BrowserWindow, shell } from 'electron';
+import icon from '../../resources/icon.png?asset';
 
 export const TITLEBAR_HEIGHT = 48;
 
@@ -16,6 +17,7 @@ export function createMainWindow(theme: 'dark' | 'light'): BrowserWindow {
     minHeight: 600,
     show: false,
     title: 'Downtube',
+    icon,
     backgroundColor: COLORS[theme].color,
     titleBarStyle: 'hidden',
     titleBarOverlay: { ...COLORS[theme], height: TITLEBAR_HEIGHT },

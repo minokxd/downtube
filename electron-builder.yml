@@ -1,0 +1,27 @@
+appId: com.minokxd.downtube
+productName: Downtube
+copyright: Copyright © 2026 minok
+directories:
+  output: release/${version}
+  buildResources: resources
+files:
+  - out/**/*
+  - resources/icon.png
+  - package.json
+asar: true
+npmRebuild: false
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.png
+  artifactName: Downtube-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Downtube
+  uninstallDisplayName: Downtube
