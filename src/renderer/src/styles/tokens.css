@@ -1,0 +1,61 @@
+:root {
+  --font-sans: 'Inter Variable', 'Segoe UI Variable', system-ui, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono: 'Cascadia Code', Consolas, ui-monospace, monospace;
+  --radius-lg: 12px;
+  --radius: 8px;
+  --radius-pill: 999px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur: 180ms;
+  --titlebar-h: 48px;
+  --sidebar-w: 212px;
+}
+
+/* Gece */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #111113;
+  --surface: #18181c;
+  --surface-2: #1f1f25;
+  --surface-3: #2a2a31;
+  --border: #2a2a31;
+  --border-strong: #3a3a43;
+  --text: #ececf1;
+  --text-muted: #8b8b98;
+  --text-faint: #5f5f6b;
+  --accent: #c4b5fd;
+  --accent-hover: #d6cbfe;
+  --accent-soft: rgba(196, 181, 253, 0.14);
+  --on-accent: #1e1a33;
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --success: #86efac;
+  --overlay: rgba(8, 8, 10, 0.72);
+  --shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  --thumb-placeholder: #23232a;
+}
+
+/* Kağıt */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f5f0e8;
+  --surface: #ece5d8;
+  --surface-2: #e4dccd;
+  --surface-3: #d9cfbf;
+  --border: #d9cfbf;
+  --border-strong: #c8bca8;
+  --text: #2a2420;
+  --text-muted: #7a6f64;
+  --text-faint: #a39787;
+  --accent: #c2593f;
+  --accent-hover: #ad4c34;
+  --accent-soft: rgba(194, 89, 63, 0.12);
+  --on-accent: #fdf6ef;
+  --danger: #b42318;
+  --danger-soft: rgba(180, 35, 24, 0.1);
+  --success: #3f7d4e;
+  --overlay: rgba(42, 36, 32, 0.45);
+  --shadow: 0 16px 48px rgba(60, 40, 20, 0.18);
+  --thumb-placeholder: #e0d7c8;
+}

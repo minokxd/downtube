@@ -40,6 +40,9 @@ export const IPC = {
 
 export type Unsubscribe = () => void;
 
+// What the renderer may change: the download folder and the update-check timestamp are main-process only.
+export type SettingsPatch = Partial<Omit<Settings, 'downloadDir' | 'lastYtdlpUpdateCheck'>>;
+
 export interface DowntubeApi {
   app: {
     info(): Promise<{ version: string; libraryRecovered: 'none' | 'backup' | 'reset' }>;
@@ -72,7 +75,7 @@ export interface DowntubeApi {
   settings: {
     get(): Promise<Settings>;
     // The download folder is only set through chooseDownloadDir; the UI never sends file paths.
-    update(patch: Partial<Omit<Settings, 'downloadDir' | 'lastYtdlpUpdateCheck'>>): Promise<Settings>;
+    update(patch: SettingsPatch): Promise<Settings>;
     chooseDownloadDir(): Promise<string | null>;
     onChanged(callback: (settings: Settings) => void): Unsubscribe;
   };
