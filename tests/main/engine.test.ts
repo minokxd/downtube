@@ -112,6 +112,57 @@ describe('Engine.status', () => {
     expect(engine.paths()).toEqual({ ytdlp: join(bin, 'yt-dlp.exe'), deno: join(bin, 'deno.exe'), ffmpegDir: system });
   });
 
+  it('retries a version probe whose process failed to spawn (code null) before giving up', async () => {
+    const bin = join(dir, 'bin');
+    const system = join(dir, 'system');
+    await touch(join(bin, 'yt-dlp.exe'));
+    await touch(join(bin, 'deno.exe'));
+    await touch(join(system, 'ffmpeg.exe'));
+    await touch(join(system, 'ffprobe.exe'));
+    let ytdlpVersionCalls = 0;
+    const run: RunFn = (exe, args, options) => {
+      if (exe.endsWith('yt-dlp.exe') && args[0] === '--version' && ytdlpVersionCalls++ === 0) {
+        return { done: Promise.resolve({ code: null, canceled: false, stdout: '', log: 'spawn error: EBUSY' }), cancel: () => undefined };
+      }
+      return fakeRun(exe, args, options);
+    };
+    const engine = new Engine({ binDir: bin, fetchImpl: fetch, run, pathEnv: system, versionRetryDelaysMs: [0, 0] });
+    const status = await engine.status();
+    expect(ytdlpVersionCalls).toBe(2);
+    expect(status.components.find((c) => c.id === 'ytdlp')).toMatchObject({ installed: true, version: '2026.08.19' });
+    expect(status.ready).toBe(true);
+    expect(engine.paths()).not.toBeNull();
+  });
+
+  it('gives up (no version, not ready) once the spawn-failure retries are exhausted', async () => {
+    const bin = join(dir, 'bin');
+    await touch(join(bin, 'yt-dlp.exe'));
+    let calls = 0;
+    const run: RunFn = () => {
+      calls++;
+      return { done: Promise.resolve({ code: null, canceled: false, stdout: '', log: 'spawn error: EBUSY' }), cancel: () => undefined };
+    };
+    const engine = new Engine({ binDir: bin, fetchImpl: fetch, run, pathEnv: '', versionRetryDelaysMs: [0, 0] });
+    const status = await engine.status();
+    expect(calls).toBe(3);
+    expect(status.components.find((c) => c.id === 'ytdlp')).toMatchObject({ installed: true, version: undefined });
+    expect(status.ready).toBe(false);
+    expect(engine.paths()).toBeNull();
+  });
+
+  it('does not retry a version probe that ran and exited with an error code', async () => {
+    const bin = join(dir, 'bin');
+    await touch(join(bin, 'yt-dlp.exe'));
+    let calls = 0;
+    const run: RunFn = () => {
+      calls++;
+      return { done: Promise.resolve({ code: 1, canceled: false, stdout: '', log: 'boom' }), cancel: () => undefined };
+    };
+    const engine = new Engine({ binDir: bin, fetchImpl: fetch, run, pathEnv: '', versionRetryDelaysMs: [0, 0] });
+    await engine.status();
+    expect(calls).toBe(1);
+  });
+
   it('falls back to the bundled ffmpeg', async () => {
     const bin = join(dir, 'bin');
     await touch(join(bin, 'ffmpeg', 'ffmpeg.exe'));

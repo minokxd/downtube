@@ -24,7 +24,7 @@ export const useEngine = create<EngineState>()((set, get) => ({
       set({ status: await window.downtube.engine.install(force) });
     } catch (err) {
       set({ installError: err instanceof Error ? err.message : String(err) });
-      await get().refresh();
+      await get().refresh().catch(() => undefined);
     } finally {
       set({ installing: false });
     }

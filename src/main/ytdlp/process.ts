@@ -48,11 +48,21 @@ export const runProcess: RunFn = (exe, args, options = {}) => {
     if (log.length > limit) log.shift();
   };
 
-  const child = spawn(exe, args, {
-    shell: false,
-    windowsHide: true,
-    env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8', ...options.env },
-  });
+  let child: ChildProcess;
+  try {
+    child = spawn(exe, args, {
+      shell: false,
+      windowsHide: true,
+      env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8', ...options.env },
+    });
+  } catch (error) {
+    // spawn reports ENOENT/EACCES via 'error', but throws synchronously for EBUSY, EPERM, invalid arguments…
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      done: Promise.resolve({ code: null, canceled: false, stdout: '', log: `spawn error: ${message}` }),
+      cancel: () => undefined,
+    };
+  }
 
   const splitter = (stream: StreamName): LineSplitter =>
     new LineSplitter((line) => {

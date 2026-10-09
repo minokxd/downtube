@@ -26,6 +26,11 @@ const KEYS: Record<string, ShortcutAction> = {
   escape: 'close',
 };
 
+// Holding these keys keeps seeking / changing the volume; everything else fires once per key press.
+const REPEATABLE: ReadonlySet<ShortcutAction> = new Set(['back5', 'forward5', 'back10', 'forward10', 'volumeUp', 'volumeDown']);
+
+export const repeatsWhenHeld = (action: ShortcutAction): boolean => REPEATABLE.has(action);
+
 export function shortcutAction(key: string): ShortcutAction | null {
   return KEYS[key.toLowerCase()] ?? null;
 }

@@ -16,6 +16,8 @@ export interface EngineOptions {
   run?: RunFn;
   pathEnv?: string;
   retryDelaysMs?: number[];
+  /** Delays between re-runs of a version probe whose process failed to spawn (e.g. antivirus holding a fresh exe). */
+  versionRetryDelaysMs?: number[];
 }
 
 const PROGRESS_INTERVAL_MS = 100;
@@ -69,8 +71,15 @@ export class Engine {
   }
 
   private async version(exe: string, args: string[], parse: (out: string) => string | undefined): Promise<string | undefined> {
-    const result = await this.run(exe, args, { collectStdout: true }).done;
-    return result.code === 0 ? parse(result.stdout) : undefined;
+    const delays = this.options.versionRetryDelaysMs ?? [300, 1000];
+    for (let attempt = 0; ; attempt++) {
+      const result = await this.run(exe, args, { collectStdout: true }).done;
+      if (result.code === 0) return parse(result.stdout);
+      // Only a spawn failure (code null) is worth retrying; a process that ran and failed will fail again.
+      const delay = delays[attempt];
+      if (result.code !== null || delay === undefined) return undefined;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
   }
 
   private async findSystemFfmpegDir(): Promise<string | undefined> {

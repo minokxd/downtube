@@ -35,6 +35,8 @@ export class YtdlpClient {
         ? buildProbeArgs(paths, { url: info.url, list: false })
         : buildProbeArgs(paths, { url: info.url, list: true, start, end: start + PAGE_SIZE - 1 });
     const result = await this.run(paths.ytdlp, args, { collectStdout: true }).done;
+    // code === null: the process never ran (spawn failure), so the log is ours, not yt-dlp's.
+    if (result.code === null && !result.canceled) throw new YtdlpError('ENGINE_MISSING', result.log);
     if (result.code !== 0) throw new YtdlpError(mapError(result.log), result.log);
     let json: unknown;
     try {

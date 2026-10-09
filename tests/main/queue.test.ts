@@ -83,6 +83,18 @@ describe('DownloadQueue', () => {
     expect(queue.list()[0]).toMatchObject({ status: 'failed', error: { code: 'PRIVATE' } });
   });
 
+  it('fails with ENGINE_MISSING when the process could not be spawned', async () => {
+    const { queue, runs } = setup();
+    queue.add([input('aaaaaaaaaaa')]);
+    // The log text would map to NETWORK; a spawn failure must win over it.
+    runs[0]?.finish({ code: null, log: 'spawn error: x (unable to download webpage)' });
+    await tick();
+    expect(queue.list()[0]).toMatchObject({
+      status: 'failed',
+      error: { code: 'ENGINE_MISSING', log: 'spawn error: x (unable to download webpage)' },
+    });
+  });
+
   it('fails when yt-dlp exits cleanly without a file', async () => {
     const { queue, runs } = setup();
     queue.add([input('aaaaaaaaaaa')]);
@@ -113,6 +125,31 @@ describe('DownloadQueue', () => {
         { videoId: 'bbbbbbbbbbb', reason: 'in-queue' },
       ],
     });
+  });
+
+  it('attaches an already-owned video to the collection it was skipped for', () => {
+    const attachToCollection = vi.fn(async () => true);
+    const { queue } = setup({ isInLibrary: (videoId) => videoId === 'aaaaaaaaaaa', attachToCollection });
+    const collection = { youtubeId: 'PL1', kind: 'playlist' as const, title: 'Mix', index: 3 };
+    const result = queue.add([
+      input('aaaaaaaaaaa', { collection }),
+      input('bbbbbbbbbbb', { collection: { ...collection, index: 4 } }),
+    ]);
+    expect(result.skipped).toEqual([{ videoId: 'aaaaaaaaaaa', reason: 'in-library' }]);
+    expect(attachToCollection).toHaveBeenCalledTimes(1);
+    expect(attachToCollection).toHaveBeenCalledWith('aaaaaaaaaaa', 'video', collection);
+  });
+
+  it('does not attach an owned video that has no collection, and survives a failing attach', async () => {
+    const attachToCollection = vi.fn(async () => {
+      throw new Error('disk');
+    });
+    const { queue } = setup({ isInLibrary: () => true, attachToCollection });
+    const collection = { youtubeId: 'PL1', kind: 'playlist' as const, title: 'Mix', index: 1 };
+    expect(() => queue.add([input('aaaaaaaaaaa'), input('bbbbbbbbbbb', { collection })])).not.toThrow();
+    await tick();
+    expect(attachToCollection).toHaveBeenCalledTimes(1);
+    expect(attachToCollection).toHaveBeenCalledWith('bbbbbbbbbbb', 'video', collection);
   });
 
   it('allows the same video as a different kind', () => {

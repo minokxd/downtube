@@ -19,7 +19,8 @@ export async function cleanupPartialFiles(dir: string, videoId: string): Promise
   const removed: string[] = [];
   const removeFile = async (name: string): Promise<void> => {
     try {
-      await fs.rm(join(dir, name), { force: true });
+      // Files are often still locked right after taskkill, so let rm retry EBUSY/EPERM.
+      await fs.rm(join(dir, name), { force: true, maxRetries: 5, retryDelay: 100 });
       removed.push(name);
     } catch {
       // a locked file is left behind; it is harmless

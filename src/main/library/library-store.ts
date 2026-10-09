@@ -143,6 +143,15 @@ export class LibraryStore {
     return structuredClone(item);
   }
 
+  /** Adds a video that is already in the library to the collection of a playlist/channel download. */
+  async attachExisting(videoId: string, kind: MediaKind, ref: JobCollectionRef): Promise<boolean> {
+    const item = this.findByVideo(videoId, kind);
+    if (!item || item.missing) return false;
+    this.attachToCollection(item, ref, new Date().toISOString());
+    await this.commit();
+    return true;
+  }
+
   private attachToCollection(item: LibraryItem, ref: JobCollectionRef, now: string): void {
     let collection = this.data.collections.find((c) => c.youtubeId === ref.youtubeId && c.kind === ref.kind);
     if (!collection) {

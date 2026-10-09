@@ -92,6 +92,40 @@ describe('LibraryStore', () => {
     expect(store.get(a.id)?.collectionIds).toEqual([collection?.id]);
   });
 
+  it('attaches already-owned items to a collection in index order', async () => {
+    const store = await LibraryStore.open(file);
+    const a = await store.addFromDownload(input({}, 'aaaaaaaaaaa'));
+    const b = await store.addFromDownload(input({}, 'bbbbbbbbbbb'));
+    const ref = { youtubeId: 'PL1', kind: 'playlist' as const, title: 'My list' };
+    const listener = vi.fn();
+    store.onChange(listener);
+    expect(await store.attachExisting('bbbbbbbbbbb', 'video', { ...ref, index: 1 })).toBe(true);
+    expect(await store.attachExisting('aaaaaaaaaaa', 'video', { ...ref, index: 0 })).toBe(true);
+    expect(listener).toHaveBeenCalledTimes(2);
+    const { collections } = store.snapshot();
+    expect(collections).toHaveLength(1);
+    expect(collections[0]).toMatchObject({ youtubeId: 'PL1', kind: 'playlist', title: 'My list', itemIds: [a.id, b.id] });
+    expect(store.get(a.id)?.collectionIds).toEqual([collections[0]?.id]);
+    const reopened = await LibraryStore.open(file);
+    expect(reopened.snapshot().collections[0]?.itemIds).toEqual([a.id, b.id]);
+  });
+
+  it('does not attach a video that is unknown, of another kind or missing', async () => {
+    const store = await LibraryStore.open(file);
+    await store.addFromDownload(input({}, 'aaaaaaaaaaa'));
+    const missing = await store.addFromDownload(input({}, 'bbbbbbbbbbb'));
+    await store.refreshMissing(async (path) => !path.includes('bbbbbbbbbbb'));
+    expect(store.get(missing.id)?.missing).toBe(true);
+    const listener = vi.fn();
+    store.onChange(listener);
+    const ref = { youtubeId: 'PL1', kind: 'playlist' as const, title: 'My list', index: 0 };
+    expect(await store.attachExisting('zzzzzzzzzzz', 'video', ref)).toBe(false);
+    expect(await store.attachExisting('aaaaaaaaaaa', 'audio', ref)).toBe(false);
+    expect(await store.attachExisting('bbbbbbbbbbb', 'video', ref)).toBe(false);
+    expect(listener).not.toHaveBeenCalled();
+    expect(store.snapshot().collections).toEqual([]);
+  });
+
   it('removes items, trashes files on request and drops empty collections', async () => {
     const store = await LibraryStore.open(file);
     const item = await store.addFromDownload(

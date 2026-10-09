@@ -273,7 +273,11 @@ export const usePlayer = create<PlayerState>()((set, get) => ({
   },
 
   seek: (time) => {
-    if (Number.isFinite(time)) audioElement().currentTime = Math.max(0, time);
+    if (!Number.isFinite(time)) return;
+    const target = Math.max(0, time);
+    audioElement().currentTime = target;
+    // Without this the controlled slider jumps back to the old time until the next timeupdate.
+    set({ currentTime: target });
   },
 
   setVolume: (volume) => {

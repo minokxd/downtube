@@ -50,6 +50,15 @@ describe('YtdlpClient.probe', () => {
     });
   });
 
+  it('treats a process that could not be spawned as a missing engine, not a mapped error', async () => {
+    // The log text would map to NETWORK; a spawn failure must win over it.
+    const { run } = fakeRun({ code: null, log: 'spawn error: EBUSY (unable to download webpage)' });
+    await expect(new YtdlpClient({ getPaths: () => paths, run }).probe('https://youtu.be/jNQXAC9IVRw')).rejects.toMatchObject({
+      code: 'ENGINE_MISSING',
+      log: 'spawn error: EBUSY (unable to download webpage)',
+    });
+  });
+
   it('rejects invalid links and a missing engine', async () => {
     const { run } = fakeRun({});
     const client = new YtdlpClient({ getPaths: () => paths, run });

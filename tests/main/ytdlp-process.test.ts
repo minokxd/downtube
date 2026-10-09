@@ -58,4 +58,16 @@ describe('runProcess', () => {
     expect(result.code).toBeNull();
     expect(result.log).toContain('spawn error');
   });
+
+  it('turns a synchronous spawn throw into a failed result instead of throwing', async () => {
+    // Node throws synchronously (ERR_INVALID_ARG_VALUE) for a NUL byte in an argument,
+    // like it does for EBUSY/EPERM when antivirus is scanning a fresh executable.
+    const handle = runProcess(process.execPath, ['a\u0000b'], { shouldLog: () => false });
+    const result = await handle.done;
+    expect(result.code).toBeNull();
+    expect(result.canceled).toBe(false);
+    expect(result.stdout).toBe('');
+    expect(result.log).toContain('spawn error');
+    expect(() => handle.cancel()).not.toThrow();
+  });
 });

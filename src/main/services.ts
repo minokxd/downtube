@@ -74,6 +74,7 @@ export async function createServices(options: ServiceOptions): Promise<Services>
         return item.id;
       },
       isInLibrary: (videoId, kind) => library.hasPlayable(videoId, kind),
+      attachToCollection: (videoId, kind, ref) => library.attachExisting(videoId, kind, ref),
       cleanupPartials: async (job) => {
         await cleanupPartialFiles(outputDirFor(settings.get().downloadDir, job.kind), job.videoId);
       },

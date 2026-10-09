@@ -9,6 +9,8 @@ export const en: Record<MessageKey, string> = {
   'linkbar.add': 'Add',
   'linkbar.invalid': "That isn't a YouTube link.",
 
+  'boot.failed': "Downtube couldn't start. Try again or reopen the app.",
+
   'common.cancel': 'Cancel',
   'common.close': 'Close',
   'common.retry': 'Try again',

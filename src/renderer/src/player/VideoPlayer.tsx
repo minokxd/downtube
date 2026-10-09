@@ -10,7 +10,7 @@ import { usePlayer } from '../stores/player';
 import { useUi } from '../stores/ui';
 import { createProgressSaver } from './progress-saver';
 import { resumeStart } from './resume';
-import { shortcutAction, type ShortcutAction } from './video-shortcuts';
+import { repeatsWhenHeld, shortcutAction, type ShortcutAction } from './video-shortcuts';
 import './video-player.css';
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -103,8 +103,8 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
   const closePlayer = useCallback(() => {
     const video = videoRef.current;
     if (video && hasMetadata(video)) saver.flush(itemId, video.currentTime, video.duration);
-    if (document.fullscreenElement) void document.exitFullscreen();
-    if (document.pictureInPictureElement) void document.exitPictureInPicture();
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
+    if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => undefined);
     close();
   }, [close, itemId, saver]);
 
@@ -128,15 +128,15 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
   }, []);
 
   const toggleFullscreen = useCallback(() => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void containerRef.current?.requestFullscreen();
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
+    else containerRef.current?.requestFullscreen().catch(() => undefined);
   }, []);
 
   const togglePip = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (document.pictureInPictureElement) void document.exitPictureInPicture();
-    else void video.requestPictureInPicture().catch(() => undefined);
+    if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => undefined);
+    else video.requestPictureInPicture().catch(() => undefined);
   }, []);
 
   const run = useCallback(
@@ -174,7 +174,7 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
           break;
         case 'close':
           if (menu) setMenu(null);
-          else if (document.fullscreenElement) void document.exitFullscreen();
+          else if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
           else closePlayer();
           break;
       }
@@ -189,6 +189,8 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
       const action = shortcutAction(event.key);
       if (!action) return;
       event.preventDefault();
+      // A held key would re-toggle play/fullscreen/mute dozens of times a second.
+      if (event.repeat && !repeatsWhenHeld(action)) return;
       run(action);
     };
     window.addEventListener('keydown', onKey);
@@ -304,7 +306,10 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
               value={Math.min(time, duration || 0)}
               style={fill(progress)}
               onChange={(event) => {
-                if (videoRef.current) videoRef.current.currentTime = Number(event.target.value);
+                const value = Number(event.target.value);
+                if (videoRef.current) videoRef.current.currentTime = value;
+                // The slider is controlled by `time`; without this it snaps back until the next timeupdate.
+                setTime(value);
               }}
               aria-label={t('player.seek')}
             />

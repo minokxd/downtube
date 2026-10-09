@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LibraryItem, ProbeEntry, ProbeList, ProbeVideo } from '@shared/types';
-import { inLibraryIds, listJobs, mergeEntries, playlistUrl, videoJob } from '../../src/renderer/src/components/add-dialog-logic';
+import { inLibraryIds, listJobs, listSubmitIds, mergeEntries, playlistUrl, videoJob } from '../../src/renderer/src/components/add-dialog-logic';
 
 const video: ProbeVideo = {
   videoId: 'jNQXAC9IVRw',
@@ -51,6 +51,29 @@ describe('listJobs', () => {
       ['ccccccccccc', 2],
     ]);
     expect(jobs[0]?.collection).toEqual({ youtubeId: 'PL1', kind: 'playlist', title: 'My list', index: 0 });
+  });
+});
+
+describe('listSubmitIds', () => {
+  const entries = [entry('aaaaaaaaaaa'), entry('bbbbbbbbbbb'), entry('ccccccccccc')];
+  const owned = new Set(['bbbbbbbbbbb']);
+  const choice = { kind: 'video' as const, quality: '1080' as const, subtitles: false };
+
+  it('adds the owned entries of the loaded list to the chosen ones', () => {
+    const ids = listSubmitIds(entries, [entries[0]!], owned);
+    expect([...ids].sort()).toEqual(['aaaaaaaaaaa', 'bbbbbbbbbbb']);
+  });
+
+  it('keeps the list positions, so owned entries get the right place in the new collection', () => {
+    const jobs = listJobs(list, entries, listSubmitIds(entries, [entries[2]!], owned), choice);
+    expect(jobs.map((j) => [j.videoId, j.collection?.index])).toEqual([
+      ['bbbbbbbbbbb', 1],
+      ['ccccccccccc', 2],
+    ]);
+  });
+
+  it('ignores owned ids that are not in the loaded list', () => {
+    expect([...listSubmitIds(entries, [entries[0]!], new Set(['zzzzzzzzzzz']))]).toEqual(['aaaaaaaaaaa']);
   });
 });
 

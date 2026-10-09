@@ -7,6 +7,8 @@ export const tr = {
   'linkbar.add': 'Ekle',
   'linkbar.invalid': 'Bu bir YouTube linki değil.',
 
+  'boot.failed': 'Downtube başlatılamadı. Tekrar dene ya da uygulamayı yeniden aç.',
+
   'common.cancel': 'İptal',
   'common.close': 'Kapat',
   'common.retry': 'Tekrar dene',

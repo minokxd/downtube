@@ -153,3 +153,25 @@ describe('player store with a missing track', () => {
     expect(positions[positions.length - 1]).toBe(42);
   });
 });
+
+describe('player store seek', () => {
+  it('moves the stored time at once, so a controlled slider does not snap back while dragging', async () => {
+    player.usePlayer.getState().playItems(['A']);
+    await tick();
+    player.usePlayer.getState().seek(37);
+    expect(element().currentTime).toBe(37);
+    expect(player.usePlayer.getState().currentTime).toBe(37);
+  });
+
+  it('clamps negative targets to zero and ignores non-finite ones', async () => {
+    player.usePlayer.getState().playItems(['A']);
+    await tick();
+    player.usePlayer.getState().seek(12);
+    player.usePlayer.getState().seek(-5);
+    expect(player.usePlayer.getState().currentTime).toBe(0);
+    player.usePlayer.getState().seek(12);
+    player.usePlayer.getState().seek(Number.NaN);
+    expect(player.usePlayer.getState().currentTime).toBe(12);
+    expect(element().currentTime).toBe(12);
+  });
+});

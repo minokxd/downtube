@@ -47,6 +47,18 @@ export function listJobs(
   return jobs;
 }
 
+/**
+ * Ids to submit for a playlist/channel: the chosen entries plus the already-owned ones of the loaded list.
+ * Main skips the owned ones as in-library but attaches them to the new collection, so it is not left partial.
+ */
+export function listSubmitIds(
+  entries: readonly ProbeEntry[],
+  chosen: readonly ProbeEntry[],
+  owned: ReadonlySet<string>,
+): Set<string> {
+  return new Set([...chosen, ...entries.filter((entry) => owned.has(entry.videoId))].map((entry) => entry.videoId));
+}
+
 export function mergeEntries(current: readonly ProbeEntry[], incoming: readonly ProbeEntry[]): ProbeEntry[] {
   const seen = new Set(current.map((entry) => entry.videoId));
   const merged = [...current];

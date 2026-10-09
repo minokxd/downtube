@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AddJobsResult, Job, JobStatus, MediaKind, NewJobInput } from '@shared/types';
+import type { AddJobsResult, ErrorCode, Job, JobCollectionRef, JobStatus, MediaKind, NewJobInput } from '@shared/types';
 import { errorCodeOf, mapError } from '../ytdlp/errors';
 import type { DoneInfo, YtdlpEvent } from '../ytdlp/output';
 import type { RunHandle } from '../ytdlp/process';
@@ -9,6 +9,8 @@ export interface QueueDeps {
   startDownload(job: Job, onEvent: (event: YtdlpEvent) => void): RunHandle;
   onCompleted(job: Job, done: DoneInfo): Promise<string>;
   isInLibrary(videoId: string, kind: MediaKind): boolean;
+  /** Adds an already-owned video to the collection of a playlist/channel download that skipped it. */
+  attachToCollection?(videoId: string, kind: MediaKind, ref: JobCollectionRef): Promise<unknown>;
   cleanupPartials(job: Job): Promise<void>;
   persist(jobs: Job[]): Promise<void>;
   getConcurrency(): number;
@@ -79,6 +81,8 @@ export class DownloadQueue {
     for (const input of inputs) {
       if (this.deps.isInLibrary(input.videoId, input.kind)) {
         result.skipped.push({ videoId: input.videoId, reason: 'in-library' });
+        // Owned videos still belong to the new collection; without this it would be partial.
+        if (input.collection) void this.deps.attachToCollection?.(input.videoId, input.kind, input.collection).catch(() => undefined);
         continue;
       }
       const duplicate = this.jobs.some((j) => j.videoId === input.videoId && j.kind === input.kind && PENDING.includes(j.status));
@@ -235,7 +239,9 @@ export class DownloadQueue {
             return;
           }
           job.status = 'failed';
-          job.error = { code: result.code === 0 ? 'UNKNOWN' : mapError(result.log), log: result.log };
+          // code === null (not canceled): the process never ran, so the log is a spawn failure, not yt-dlp output.
+          const code: ErrorCode = result.code === 0 ? 'UNKNOWN' : result.code === null ? 'ENGINE_MISSING' : mapError(result.log);
+          job.error = { code, log: result.log };
           if (job.error.code === 'DISK_FULL') await this.deps.cleanupPartials(job);
         } finally {
           // A retry during cleanup must not have its new handle removed here.

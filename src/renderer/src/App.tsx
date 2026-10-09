@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AddDialog } from './components/AddDialog';
 import { Sidebar } from './components/Sidebar';
 import { TitleBar } from './components/TitleBar';
 import { Toasts } from './components/Toasts';
-import { translate } from './i18n';
+import { translate, useT } from './i18n';
 import { useAppliedTheme } from './lib/use-applied-theme';
 import { DownloadsPage } from './pages/DownloadsPage';
 import { LibraryPage } from './pages/LibraryPage';
@@ -32,14 +32,21 @@ export function App() {
   const engineStatus = useEngine((s) => s.status);
   const page = useUi((s) => s.page);
   const skipSetup = useUi((s) => s.skipSetup);
+  const t = useT();
+  const [bootFailed, setBootFailed] = useState(false);
   useAppliedTheme(settings?.theme);
+
+  // Settings and the engine status gate the whole UI; if either read rejects, offer a retry instead of a blank screen.
+  const loadBoot = useCallback(() => {
+    setBootFailed(false);
+    Promise.all([useSettings.getState().load(), useEngine.getState().refresh()]).catch(() => setBootFailed(true));
+  }, []);
 
   useEffect(() => {
     const api = window.downtube;
-    void useSettings.getState().load();
+    loadBoot();
     void useLibrary.getState().load();
     void useJobs.getState().load();
-    void useEngine.getState().refresh();
     void api.app.info().then((info) => {
       if (info.libraryRecovered === 'none') return;
       const key = info.libraryRecovered === 'backup' ? 'library.recoveredBackup' : 'library.recoveredReset';
@@ -55,13 +62,28 @@ export function App() {
     return () => {
       for (const unsubscribe of unsubscribers) unsubscribe();
     };
-  }, []);
+  }, [loadBoot]);
 
   useEffect(() => {
     if (settings) document.documentElement.lang = settings.language;
   }, [settings]);
 
-  if (!settings || !engineStatus) return <div className="boot" aria-busy="true" />;
+  if (!settings || !engineStatus) {
+    if (!bootFailed) return <div className="boot" aria-busy="true" />;
+    // No TitleBar here: it needs settings. The window controls overlay still works.
+    return (
+      <div className="boot">
+        <div className="empty" role="alert">
+          <div>
+            <p>{t('boot.failed')}</p>
+            <button type="button" className="btn btn-primary" onClick={loadBoot}>
+              {t('common.retry')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const showSetup = !engineStatus.ready && !skipSetup;
 
   return (

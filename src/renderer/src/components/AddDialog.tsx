@@ -17,7 +17,7 @@ import { formatDuration } from '../lib/format';
 import { useLibrary } from '../stores/library';
 import { useSettings } from '../stores/settings';
 import { useUi } from '../stores/ui';
-import { inLibraryIds, listJobs, mergeEntries, playlistUrl, videoJob } from './add-dialog-logic';
+import { inLibraryIds, listJobs, listSubmitIds, mergeEntries, playlistUrl, videoJob } from './add-dialog-logic';
 import { Segmented, Switch } from './controls';
 import { Thumb } from './Thumb';
 import './add-dialog.css';
@@ -135,7 +135,7 @@ function AddDialogContent({ url }: { url: string }) {
     const choice = { kind, quality, subtitles };
     let inputs: NewJobInput[] = [];
     if (state.phase === 'video') inputs = [videoJob(state.video, choice)];
-    else if (state.phase === 'list') inputs = listJobs(state.list, state.entries, new Set(chosen.map((e) => e.videoId)), choice);
+    else if (state.phase === 'list') inputs = listJobs(state.list, state.entries, listSubmitIds(state.entries, chosen, owned), choice);
     if (inputs.length === 0) return;
     setSubmitting(true);
     try {
