@@ -1,0 +1,61 @@
+import { spawnSync } from 'node:child_process';
+import { copyFile, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+function ffmpeg(args: string[]): void {
+  const result = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', ...args], { encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(`ffmpeg failed: ${result.stderr || result.error?.message}`);
+}
+
+export interface Fixture {
+  root: string;
+  userData: string;
+}
+
+/** Creates a separate profile with one video and one song, generated locally by ffmpeg. */
+export async function createFixture(): Promise<Fixture> {
+  const root = await mkdtemp(join(tmpdir(), 'downtube-e2e-'));
+  const userData = join(root, 'userData');
+  const videoDir = join(root, 'Downtube', 'Video');
+  const musicDir = join(root, 'Downtube', 'Müzik');
+  await Promise.all([mkdir(userData, { recursive: true }), mkdir(videoDir, { recursive: true }), mkdir(musicDir, { recursive: true })]);
+
+  const video = join(videoDir, 'Sample video [e2eVideo001].mp4');
+  const videoThumb = join(videoDir, 'Sample video [e2eVideo001].jpg');
+  const song = join(musicDir, 'Sample song [e2eAudio001].mp3');
+  const songThumb = join(musicDir, 'Sample song [e2eAudio001].jpg');
+  ffmpeg([
+    '-f', 'lavfi', '-i', 'testsrc2=duration=6:size=640x360:rate=30',
+    '-f', 'lavfi', '-i', 'sine=frequency=330:duration=6',
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', video,
+  ]);
+  ffmpeg(['-f', 'lavfi', '-i', 'sine=frequency=523:duration=6', '-c:a', 'libmp3lame', '-q:a', '4', song]);
+  ffmpeg(['-f', 'lavfi', '-i', 'color=c=0x2a2638:size=640x360', '-frames:v', '1', videoThumb]);
+  await copyFile(videoThumb, songThumb);
+
+  const now = new Date().toISOString();
+  const base = {
+    subtitles: [],
+    sizeBytes: 1,
+    addedAt: now,
+    collectionIds: [],
+    progress: { positionSec: 0, updatedAt: now, completed: false },
+    playCount: 0,
+  };
+  const library = {
+    version: 1,
+    items: [
+      { ...base, id: 'e2e-video', videoId: 'e2eVideo001', kind: 'video', title: 'Sample video', channel: 'Downtube', durationSec: 6, filePath: video, thumbPath: videoThumb, sourceUrl: 'https://www.youtube.com/watch?v=e2eVideo001' },
+      { ...base, id: 'e2e-audio', videoId: 'e2eAudio001', kind: 'audio', title: 'Sample song', channel: 'Downtube', artist: 'Downtube', durationSec: 6, filePath: song, thumbPath: songThumb, sourceUrl: 'https://www.youtube.com/watch?v=e2eAudio001' },
+    ],
+    collections: [],
+  };
+  await writeFile(join(userData, 'library.json'), JSON.stringify(library), 'utf8');
+  await writeFile(
+    join(userData, 'settings.json'),
+    JSON.stringify({ theme: 'dark', language: 'tr', downloadDir: join(root, 'Downtube'), clipboardWatch: false }),
+    'utf8',
+  );
+  return { root, userData };
+}

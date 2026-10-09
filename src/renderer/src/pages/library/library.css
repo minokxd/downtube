@@ -294,6 +294,12 @@
   text-transform: uppercase;
 }
 
+/* The duration column style must not restyle its own header cell. */
+.track-head .track-duration {
+  color: inherit;
+  font-size: inherit;
+}
+
 .track.is-current .track-title {
   color: var(--accent);
 }
