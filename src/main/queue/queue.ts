@@ -17,6 +17,8 @@ export interface QueueDeps {
   emitIntervalMs?: number;
   /** Debounces persistence. Defaults to 500 ms. */
   persistDelayMs?: number;
+  /** How long shutdown waits for in-flight completions before pausing them. Defaults to 5000 ms. */
+  shutdownTimeoutMs?: number;
 }
 
 const STATUSES: JobStatus[] = ['queued', 'downloading', 'processing', 'paused', 'done', 'failed', 'canceled'];
@@ -52,6 +54,7 @@ export class DownloadQueue {
   private jobs: Job[];
   private readonly running = new Map<string, RunHandle>();
   private readonly listeners = new Set<(jobs: Job[]) => void>();
+  private readonly settling = new Set<Promise<void>>();
   private emitTimer: ReturnType<typeof setTimeout> | null = null;
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   private shuttingDown = false;
@@ -101,14 +104,14 @@ export class DownloadQueue {
     }
     if (job.status === 'queued' || job.status === 'paused') {
       job.status = 'canceled';
-      void this.deps.cleanupPartials(job);
+      void this.deps.cleanupPartials(job).catch(() => undefined);
       this.changed(true);
     }
   }
 
   retry(id: string): void {
     const job = this.find(id);
-    if (!job || !['failed', 'canceled', 'paused'].includes(job.status)) return;
+    if (!job || this.running.has(id) || !['failed', 'canceled', 'paused'].includes(job.status)) return;
     const resuming = job.status === 'paused';
     job.status = 'queued';
     delete job.error;
@@ -146,13 +149,19 @@ export class DownloadQueue {
 
   async shutdown(): Promise<void> {
     this.shuttingDown = true;
-    const pending = [...this.running.values()].map((handle) => {
-      handle.cancel();
-      return handle.done;
+    for (const handle of this.running.values()) handle.cancel();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, this.deps.shutdownTimeoutMs ?? 5000);
     });
-    await Promise.allSettled(pending);
+    await Promise.race([Promise.allSettled([...this.settling]), timeout]);
+    clearTimeout(timer);
     for (const job of this.jobs) if (ACTIVE.includes(job.status)) job.status = 'paused';
-    await this.flush();
+    try {
+      await this.flush();
+    } catch (err) {
+      console.error('[queue] shutdown flush failed', err);
+    }
   }
 
   onChange(listener: (jobs: Job[]) => void): () => void {
@@ -172,17 +181,22 @@ export class DownloadQueue {
     let handle: RunHandle;
     try {
       handle = this.deps.startDownload(job, (event) => {
-        if (event.type === 'done') {
-          done = event.info;
-          return;
+        try {
+          if (event.type === 'done') {
+            done = event.info;
+            return;
+          }
+          const progress = tracker.apply(event);
+          if (!progress) return;
+          job.progress = { ...progress, percent: Math.max(progress.percent, job.progress.percent) };
+          const status: JobStatus = progress.stage === 'download' ? 'downloading' : 'processing';
+          const statusChanged = status !== job.status;
+          job.status = status;
+          this.changed(statusChanged);
+        } catch (err) {
+          // Runs inside a child-process 'data' handler; nothing may escape it.
+          console.error('[queue] progress event failed', err);
         }
-        const progress = tracker.apply(event);
-        if (!progress) return;
-        job.progress = { ...progress, percent: Math.max(progress.percent, job.progress.percent) };
-        const status: JobStatus = progress.stage === 'download' ? 'downloading' : 'processing';
-        const statusChanged = status !== job.status;
-        job.status = status;
-        this.changed(statusChanged);
       });
     } catch (err) {
       job.status = 'failed';
@@ -192,38 +206,47 @@ export class DownloadQueue {
     }
     this.running.set(job.id, handle);
     this.changed(true);
-    void handle.done.then(async (result) => {
-      try {
-        if (this.shuttingDown) {
-          job.status = 'paused';
-          return;
-        }
-        if (result.canceled) {
-          job.status = 'canceled';
-          job.progress = { ...job.progress, speedBps: undefined, etaSec: undefined };
-          await this.deps.cleanupPartials(job);
-          return;
-        }
-        if (result.code === 0 && done) {
-          try {
-            job.libraryItemId = await this.deps.onCompleted(job, done);
-            job.status = 'done';
-            job.progress = { ...job.progress, percent: 100, speedBps: undefined, etaSec: undefined };
-          } catch (err) {
-            job.status = 'failed';
-            job.error = { code: 'UNKNOWN', log: err instanceof Error ? err.message : String(err) };
+    const settled: Promise<void> = handle.done
+      .then(async (result) => {
+        try {
+          if (result.canceled) {
+            if (this.shuttingDown) {
+              job.status = 'paused';
+              return;
+            }
+            job.status = 'canceled';
+            job.progress = { ...job.progress, speedBps: undefined, etaSec: undefined };
+            await this.deps.cleanupPartials(job);
+            return;
           }
-          return;
+          if (result.code === 0 && done) {
+            try {
+              job.libraryItemId = await this.deps.onCompleted(job, done);
+              job.status = 'done';
+              job.progress = { ...job.progress, percent: 100, speedBps: undefined, etaSec: undefined };
+            } catch (err) {
+              job.status = 'failed';
+              job.error = { code: 'UNKNOWN', log: err instanceof Error ? err.message : String(err) };
+            }
+            return;
+          }
+          if (this.shuttingDown) {
+            job.status = 'paused';
+            return;
+          }
+          job.status = 'failed';
+          job.error = { code: result.code === 0 ? 'UNKNOWN' : mapError(result.log), log: result.log };
+          if (job.error.code === 'DISK_FULL') await this.deps.cleanupPartials(job);
+        } finally {
+          // A retry during cleanup must not have its new handle removed here.
+          if (this.running.get(job.id) === handle) this.running.delete(job.id);
+          this.changed(true);
+          this.pump();
         }
-        job.status = 'failed';
-        job.error = { code: result.code === 0 ? 'UNKNOWN' : mapError(result.log), log: result.log };
-        if (job.error.code === 'DISK_FULL') await this.deps.cleanupPartials(job);
-      } finally {
-        this.running.delete(job.id);
-        this.changed(true);
-        this.pump();
-      }
-    });
+      })
+      .catch((err) => console.error('[queue] completion failed', err));
+    this.settling.add(settled);
+    void settled.finally(() => this.settling.delete(settled));
   }
 
   private changed(immediate: boolean): void {
@@ -241,14 +264,20 @@ export class DownloadQueue {
     if (this.emitTimer) clearTimeout(this.emitTimer);
     this.emitTimer = null;
     const snapshot = this.list();
-    for (const listener of this.listeners) listener(snapshot);
+    for (const listener of this.listeners) {
+      try {
+        listener(snapshot);
+      } catch (err) {
+        console.error('[queue] listener failed', err);
+      }
+    }
   }
 
   private schedulePersist(): void {
     if (this.persistTimer) return;
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
-      void this.deps.persist(this.list());
+      this.deps.persist(this.list()).catch((err) => console.error('[queue] persist failed', err));
     }, this.deps.persistDelayMs ?? 500);
   }
 }

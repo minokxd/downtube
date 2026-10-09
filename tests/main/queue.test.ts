@@ -199,3 +199,128 @@ describe('sanitizeJobs', () => {
     expect(sanitizeJobs('nope')).toEqual([]);
   });
 });
+
+describe('DownloadQueue resilience', () => {
+  it('keeps starting and completing jobs when a listener throws', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { queue, runs } = setup();
+      queue.onChange(() => {
+        throw new Error('window destroyed');
+      });
+      queue.add([input('aaaaaaaaaaa'), input('bbbbbbbbbbb')]);
+      expect(runs).toHaveLength(2);
+      runs[0]?.emit({ type: 'done', info: doneInfo('aaaaaaaaaaa') });
+      runs[0]?.finish({ code: 0 });
+      await tick();
+      expect(queue.list()[0]?.status).toBe('done');
+      expect(errorSpy).toHaveBeenCalledWith('[queue] listener failed', expect.any(Error));
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('ignores a retry while the canceled job is still cleaning up', async () => {
+    let finishCleanup: () => void = () => undefined;
+    const cleanupPartials = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishCleanup = () => resolve();
+        }),
+    );
+    const { queue, runs } = setup({ cleanupPartials, getConcurrency: () => 1 });
+    queue.add([input('aaaaaaaaaaa')]);
+    const id = queue.list()[0]!.id;
+    queue.cancel(id);
+    await tick();
+    expect(queue.list()[0]?.status).toBe('canceled');
+    queue.retry(id);
+    expect(queue.list()[0]?.status).toBe('canceled');
+    expect(runs).toHaveLength(1);
+    finishCleanup();
+    await tick();
+    queue.retry(id);
+    expect(runs).toHaveLength(2);
+    expect(queue.list()[0]?.status).toBe('downloading');
+    expect(queue.isIdle()).toBe(false);
+  });
+
+  it('waits for an in-flight completion on shutdown', async () => {
+    let finishCompletion: (libraryItemId: string) => void = () => undefined;
+    const onCompleted = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          finishCompletion = resolve;
+        }),
+    );
+    const { queue, runs, deps } = setup({ onCompleted });
+    queue.add([input('aaaaaaaaaaa')]);
+    runs[0]?.emit({ type: 'done', info: doneInfo('aaaaaaaaaaa') });
+    runs[0]?.finish({ code: 0 });
+    await tick();
+    let shutdownFinished = false;
+    const shutdown = queue.shutdown().then(() => {
+      shutdownFinished = true;
+    });
+    await tick();
+    expect(shutdownFinished).toBe(false);
+    finishCompletion('library-item-1');
+    await shutdown;
+    expect(queue.list()[0]).toMatchObject({ status: 'done', libraryItemId: 'library-item-1' });
+    expect(deps.persist).toHaveBeenLastCalledWith([expect.objectContaining({ status: 'done' })]);
+  });
+
+  it('stops waiting for a stuck completion after the shutdown timeout', async () => {
+    const { queue, runs, deps } = setup({
+      onCompleted: vi.fn(() => new Promise<string>(() => undefined)),
+      shutdownTimeoutMs: 10,
+    });
+    queue.add([input('aaaaaaaaaaa')]);
+    runs[0]?.emit({ type: 'done', info: doneInfo('aaaaaaaaaaa') });
+    runs[0]?.finish({ code: 0 });
+    await tick();
+    await queue.shutdown();
+    expect(queue.list()[0]?.status).toBe('paused');
+    expect(deps.persist).toHaveBeenLastCalledWith([expect.objectContaining({ status: 'paused' })]);
+  });
+
+  it('keeps the queue alive when persisting fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { queue } = setup({
+        persist: vi.fn(async () => {
+          throw new Error('EPERM: operation not permitted');
+        }),
+        persistDelayMs: 0,
+      });
+      queue.add([input('aaaaaaaaaaa')]);
+      await tick();
+      await tick();
+      await expect(queue.shutdown()).resolves.toBeUndefined();
+      expect(errorSpy).toHaveBeenCalledWith('[queue] persist failed', expect.any(Error));
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it('keeps the queue alive when partial cleanup fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const { queue } = setup({
+        getConcurrency: () => 1,
+        cleanupPartials: vi.fn(async () => {
+          throw new Error('EBUSY');
+        }),
+      });
+      queue.add([input('aaaaaaaaaaa'), input('bbbbbbbbbbb')]);
+      const [running, waiting] = queue.list();
+      queue.cancel(waiting!.id);
+      queue.cancel(running!.id);
+      await tick();
+      expect(queue.list().map((j) => j.status)).toEqual(['canceled', 'canceled']);
+      expect(errorSpy).toHaveBeenCalledWith('[queue] completion failed', expect.any(Error));
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+});
