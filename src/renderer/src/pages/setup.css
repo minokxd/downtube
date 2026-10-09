@@ -1,0 +1,100 @@
+.setup {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.setup-card {
+  width: min(560px, 100%);
+}
+
+.setup-card .page-title {
+  margin-bottom: 8px;
+}
+
+.setup-lead {
+  margin: 0 0 24px;
+  color: var(--text-muted);
+}
+
+.setup-list {
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.setup-item {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.setup-item + .setup-item {
+  border-top: 1px solid var(--border);
+}
+
+.setup-item-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--accent);
+}
+
+.setup-item-name {
+  font-weight: 500;
+}
+
+.setup-item-desc {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.setup-item .progress {
+  margin-top: 8px;
+}
+
+.setup-item-bytes {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.setup-item-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.setup-item-state.is-done {
+  color: var(--success);
+}
+
+.setup-item-state.is-error {
+  color: var(--danger);
+}
+
+.setup-error {
+  margin: 0 0 16px;
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.setup-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

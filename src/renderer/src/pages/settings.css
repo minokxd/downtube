@@ -1,0 +1,85 @@
+.settings {
+  max-width: 780px;
+}
+
+.settings-section {
+  margin: 0 0 28px;
+}
+
+.settings-section h2 {
+  margin: 0 0 10px 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 16px;
+}
+
+.settings-row + .settings-row {
+  border-top: 1px solid var(--border);
+}
+
+.settings-row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-row-label strong {
+  font-weight: 500;
+}
+
+.settings-row-label small {
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.settings-row-control {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-message {
+  margin: 0;
+  padding: 0 16px 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.settings-disclaimer {
+  margin: 10px 4px 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.input-sm {
+  width: 180px;
+  height: 30px;
+  font-size: 13px;
+}
+
+.engine-ok {
+  color: var(--success);
+}
+
+.engine-missing {
+  color: var(--danger);
+}
