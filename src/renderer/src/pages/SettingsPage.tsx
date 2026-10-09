@@ -80,6 +80,16 @@ export function SettingsPage() {
     }
   };
 
+  const reinstall = async (): Promise<void> => {
+    try {
+      await install(true);
+    } catch {
+      // the store has already recorded the failure in installError; only its follow-up status refresh failed
+    }
+    const err = useEngine.getState().installError;
+    if (err) pushToast({ message: err.includes('busy') ? t('settings.engine.busy') : t('setup.failed'), tone: 'error' });
+  };
+
   const lastCheck = settings.lastYtdlpUpdateCheck
     ? t('settings.engine.lastCheck', {
         date: new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(settings.lastYtdlpUpdateCheck)),
@@ -212,12 +222,13 @@ export function SettingsPage() {
             </Row>
           ))}
           <Row label={t('settings.engine.updates')} hint={lastCheck}>
-            <button type="button" className="btn btn-sm" disabled={updating || busy} onClick={() => void runUpdate()}>
+            <button type="button" className="btn btn-sm" disabled={updating || installing || busy} onClick={() => void runUpdate()}>
               <RefreshCw size={14} className={updating ? 'spin' : undefined} aria-hidden="true" />
               {updating ? t('settings.engine.updating') : t('settings.engine.update')}
             </button>
-            <button type="button" className="btn btn-sm btn-ghost" disabled={installing || busy} onClick={() => void install(true)}>
-              {t('settings.engine.reinstall')}
+            <button type="button" className="btn btn-sm btn-ghost" disabled={updating || installing || busy} onClick={() => void reinstall()}>
+              {installing && <RefreshCw size={14} className="spin" aria-hidden="true" />}
+              {installing ? t('setup.installing') : t('settings.engine.reinstall')}
             </button>
           </Row>
           {updateMessage && (
