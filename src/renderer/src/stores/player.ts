@@ -52,6 +52,9 @@ let audio: HTMLAudioElement | null = null;
 let skips = 0;
 // Resume seek waiting for loadedmetadata. Dropped when another track loads, so it never moves that track.
 let pendingSeek: (() => void) | null = null;
+// The track whose media is actually in the element. It can differ from the queue's current track
+// when that track is missing or unplayable, so progress is always written for this id.
+let loadedId: string | null = null;
 
 const notify = (key: MessageKey): void => {
   const language = useSettings.getState().settings?.language ?? 'tr';
@@ -69,8 +72,7 @@ const hasSource = (el: HTMLAudioElement): boolean => el.getAttribute('src') !== 
 const hasMetadata = (el: HTMLAudioElement): boolean => el.readyState >= HTMLMediaElement.HAVE_METADATA;
 
 function flushCurrent(): void {
-  const id = currentId();
-  if (id && audio && hasSource(audio) && hasMetadata(audio)) saver.flush(id, audio.currentTime, audio.duration);
+  if (loadedId && audio && hasSource(audio) && hasMetadata(audio)) saver.flush(loadedId, audio.currentTime, audio.duration);
 }
 
 function cancelPendingSeek(el: HTMLAudioElement): void {
@@ -94,8 +96,7 @@ function audioElement(): HTMLAudioElement {
   el.volume = usePlayer.getState().volume;
   el.addEventListener('timeupdate', () => {
     usePlayer.setState({ currentTime: el.currentTime });
-    const id = currentId();
-    if (id && hasMetadata(el)) saver.update(id, el.currentTime, el.duration);
+    if (loadedId && hasMetadata(el)) saver.update(loadedId, el.currentTime, el.duration);
   });
   el.addEventListener('durationchange', () => usePlayer.setState({ duration: Number.isFinite(el.duration) ? el.duration : 0 }));
   el.addEventListener('playing', () => {
@@ -111,8 +112,7 @@ function audioElement(): HTMLAudioElement {
     flushCurrent();
   });
   el.addEventListener('ended', () => {
-    const id = currentId();
-    if (id) saver.flush(id, el.duration, el.duration);
+    if (loadedId) saver.flush(loadedId, el.duration, el.duration);
     advance(true);
   });
   el.addEventListener('error', () => {
@@ -129,6 +129,7 @@ function stopAndClear(el: HTMLAudioElement): void {
   el.pause();
   el.removeAttribute('src');
   el.load();
+  loadedId = null;
   clearMediaSession();
 }
 
@@ -136,8 +137,8 @@ function skipBroken(): void {
   skips += 1;
   if (skips >= usePlayer.getState().order.length) {
     skips = 0;
-    audioElement().pause();
-    usePlayer.setState({ playing: false });
+    stopAndClear(audioElement());
+    usePlayer.setState({ playing: false, currentTime: 0 });
     return;
   }
   advance(false);
@@ -159,6 +160,7 @@ function load(autoplay: boolean): void {
   }
   const start = resumeStart(item.progress, item.durationSec);
   el.src = mediaUrl(id);
+  loadedId = id;
   if (start > 0) {
     const seek = () => {
       pendingSeek = null;
@@ -178,8 +180,7 @@ function advance(auto: boolean): void {
   const el = audioElement();
   const index = nextIndex(state.order.length, state.index, state.repeat, auto);
   if (index === null) {
-    el.pause();
-    el.currentTime = 0;
+    stopAndClear(el);
     usePlayer.setState({ playing: false, currentTime: 0 });
     return;
   }
