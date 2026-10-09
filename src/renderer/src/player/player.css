@@ -1,0 +1,251 @@
+.musicbar {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(320px, 2fr) minmax(200px, 1fr);
+  align-items: center;
+  gap: 24px;
+  height: 76px;
+  padding: 0 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  animation: bar-in 260ms var(--ease);
+}
+
+@keyframes bar-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.musicbar-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.musicbar-cover {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.musicbar-text {
+  min-width: 0;
+}
+
+.musicbar-title,
+.musicbar-artist {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.musicbar-title {
+  font-weight: 500;
+}
+
+.musicbar-artist {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.musicbar-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.musicbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.play-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  transition: transform 120ms var(--ease), background var(--dur) var(--ease);
+}
+
+.play-btn:hover {
+  background: var(--accent-hover);
+}
+
+.play-btn:active {
+  transform: scale(0.94);
+}
+
+.musicbar-seek {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 560px;
+}
+
+.time {
+  min-width: 38px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.musicbar-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.range {
+  --fill: 0%;
+  flex: 1;
+  height: 16px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--accent) var(--fill), var(--surface-3) var(--fill));
+}
+
+.range::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--text);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+  -webkit-appearance: none;
+}
+
+.range:hover::-webkit-slider-thumb,
+.range:focus-visible::-webkit-slider-thumb {
+  opacity: 1;
+}
+
+.range-volume {
+  flex: 0 0 96px;
+}
+
+.queue-panel {
+  position: absolute;
+  right: 16px;
+  bottom: calc(100% + 8px);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  max-height: 420px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+  animation: dialog-in 180ms var(--ease);
+}
+
+.queue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+
+.queue-list {
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.queue-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--radius);
+}
+
+.queue-row:hover {
+  background: var(--surface-3);
+}
+
+.queue-row.is-current .queue-title {
+  color: var(--accent);
+}
+
+.queue-main {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.queue-index {
+  display: grid;
+  grid-row: span 2;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-title,
+.queue-artist {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.queue-title {
+  font-size: 13px;
+}
+
+.queue-artist {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.queue-actions {
+  display: flex;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.queue-row:hover .queue-actions,
+.queue-row:focus-within .queue-actions {
+  opacity: 1;
+}
+
+.queue-actions .icon-btn {
+  width: 26px;
+  height: 26px;
+}
