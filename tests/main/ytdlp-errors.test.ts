@@ -19,8 +19,8 @@ describe('mapError', () => {
   });
 
   it('looks at ERROR lines before warnings', () => {
-    const log = 'WARNING: [youtube] video unavailable in some formats\nERROR: [youtube] abc: Private video';
-    expect(mapError(log)).toBe('PRIVATE');
+    const log = 'WARNING: [youtube] abc: this video is private in some regions\nERROR: [youtube] abc: Video unavailable';
+    expect(mapError(log)).toBe('UNAVAILABLE');
   });
 
   it('falls back to the whole log when there are no ERROR lines', () => {
