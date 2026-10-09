@@ -56,7 +56,9 @@ export function useItemActions(): ItemActions {
         const { order, removeAt } = usePlayer.getState();
         const index = order.indexOf(item.id);
         if (index >= 0) removeAt(index);
-        void window.downtube.library.remove(item.id, false);
+        window.downtube.library
+          .remove(item.id, false)
+          .catch(() => pushToast({ message: t('error.UNKNOWN'), tone: 'error' }));
       },
     }),
     [openVideo, pushToast, t],

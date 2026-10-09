@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react';
 import type { LibraryItem } from '@shared/types';
 import { useT } from '../../i18n';
+import { useLibrary } from '../../stores/library';
 import { usePlayer } from '../../stores/player';
 import { useUi } from '../../stores/ui';
+
+// Main rejects with this text when the entry was removed but some sidecar files stayed on disk.
+const PARTIAL_REMOVAL = 'Could not move these files to the trash';
+
+// Read the message without instanceof: the rejection crosses the preload bridge.
+const messageOf = (err: unknown): string =>
+  typeof err === 'object' && err !== null && 'message' in err ? String(err.message) : String(err);
 
 export function DeleteDialog({ item, onClose }: { item: LibraryItem; onClose: () => void }) {
   const t = useT();
@@ -25,9 +33,16 @@ export function DeleteDialog({ item, onClose }: { item: LibraryItem; onClose: ()
       if (index >= 0) removeAt(index);
       await window.downtube.library.remove(item.id, deleteFiles);
       onClose();
-    } catch {
-      pushToast({ message: t('error.UNKNOWN'), tone: 'error' });
-      setBusy(false);
+    } catch (err) {
+      // A rejection can come after main already removed the entry, so close instead of leaving live buttons on a deleted item.
+      const removed = messageOf(err).includes(PARTIAL_REMOVAL) || !useLibrary.getState().items.some((i) => i.id === item.id);
+      if (removed) {
+        onClose();
+        pushToast({ message: t('delete.partial'), tone: 'error' });
+      } else {
+        pushToast({ message: t('error.UNKNOWN'), tone: 'error' });
+        setBusy(false);
+      }
     }
   };
 

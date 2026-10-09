@@ -101,6 +101,7 @@ export const en: Record<MessageKey, string> = {
   'delete.body': 'Remove it from your library only, or also move the file to the Recycle Bin.',
   'delete.libraryOnly': 'Remove from library',
   'delete.withFile': 'Delete with file',
+  'delete.partial': "Removed from your library, but some files couldn't be moved to the Recycle Bin.",
 
   'downloads.title': 'Downloads',
   'downloads.empty.title': 'Your download queue is empty',

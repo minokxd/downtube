@@ -99,6 +99,7 @@ export const tr = {
   'delete.body': "Yalnızca kütüphaneden kaldırabilir ya da dosyayı da Geri Dönüşüm Kutusu'na taşıyabilirsin.",
   'delete.libraryOnly': 'Kütüphaneden kaldır',
   'delete.withFile': 'Dosyayla birlikte sil',
+  'delete.partial': "Kütüphaneden kaldırıldı, ama bazı dosyalar Geri Dönüşüm Kutusu'na taşınamadı.",
 
   'downloads.title': 'İndirmeler',
   'downloads.empty.title': 'İndirme sırası boş',
