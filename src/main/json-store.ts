@@ -29,7 +29,7 @@ async function readParsed<T>(
 ): Promise<{ ok: true; value: T } | { ok: false; missing: boolean }> {
   let text: string;
   try {
-    text = await fs.readFile(filePath, 'utf8');
+    text = await withFsRetry(() => fs.readFile(filePath, 'utf8'));
   } catch (err) {
     return { ok: false, missing: (err as NodeJS.ErrnoException).code === 'ENOENT' };
   }

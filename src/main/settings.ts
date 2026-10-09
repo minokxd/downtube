@@ -70,6 +70,7 @@ export function sanitizeSettings(raw: unknown, defaults: Settings): Settings {
 
 export class SettingsStore {
   private readonly listeners = new Set<(settings: Settings) => void>();
+  private queue: Promise<void> = Promise.resolve();
 
   private constructor(
     private readonly file: JsonFile<Settings>,
@@ -90,12 +91,21 @@ export class SettingsStore {
     return structuredClone(this.current);
   }
 
-  async update(patch: unknown): Promise<Settings> {
-    this.current = applySettingsPatch(this.current, patch);
-    await this.file.write(this.current);
-    const snapshot = this.get();
-    for (const listener of this.listeners) listener(snapshot);
-    return snapshot;
+  update(patch: unknown): Promise<Settings> {
+    const run = async (): Promise<Settings> => {
+      const candidate = applySettingsPatch(this.current, patch);
+      await this.file.write(candidate);
+      this.current = candidate;
+      const snapshot = this.get();
+      for (const listener of this.listeners) listener(snapshot);
+      return snapshot;
+    };
+    const next = this.queue.then(run, run);
+    this.queue = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
   }
 
   onChange(listener: (settings: Settings) => void): () => void {
@@ -103,7 +113,8 @@ export class SettingsStore {
     return () => this.listeners.delete(listener);
   }
 
-  flush(): Promise<void> {
-    return this.file.idle();
+  async flush(): Promise<void> {
+    await this.queue;
+    await this.file.idle();
   }
 }

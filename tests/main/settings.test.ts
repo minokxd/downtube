@@ -9,6 +9,7 @@ import {
   defaultSettings,
   sanitizeSettings,
 } from '../../src/main/settings';
+import { JsonFile } from '../../src/main/json-store';
 
 const defaults = defaultSettings(join(tmpdir(), 'Videos'));
 
@@ -80,6 +81,7 @@ describe('SettingsStore', () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     await rm(dir, { recursive: true, force: true });
   });
 
@@ -98,5 +100,37 @@ describe('SettingsStore', () => {
     const store = await SettingsStore.open(join(dir, 'settings.json'), defaults);
     store.get().subtitles.langs.push('de');
     expect(store.get().subtitles.langs).toEqual(['tr', 'en']);
+  });
+
+  it('a failed write rejects the update, leaves get() unchanged and does not block later updates', async () => {
+    const file = join(dir, 'settings.json');
+    const store = await SettingsStore.open(file, defaults);
+    const listener = vi.fn();
+    store.onChange(listener);
+    vi.spyOn(JsonFile.prototype, 'write').mockRejectedValueOnce(new Error('disk full'));
+    await expect(store.update({ theme: 'dark' })).rejects.toThrow('disk full');
+    expect(store.get().theme).toBe('system');
+    expect(listener).not.toHaveBeenCalled();
+    await expect(store.update({ concurrency: 3 })).resolves.toMatchObject({ theme: 'system', concurrency: 3 });
+    const reopened = await SettingsStore.open(file, defaults);
+    expect(reopened.get()).toMatchObject({ theme: 'system', concurrency: 3 });
+  });
+
+  it('overlapping updates are both applied in memory and on disk', async () => {
+    const file = join(dir, 'settings.json');
+    const store = await SettingsStore.open(file, defaults);
+    await Promise.all([store.update({ theme: 'dark' }), store.update({ concurrency: 3 })]);
+    expect(store.get()).toMatchObject({ theme: 'dark', concurrency: 3 });
+    const reopened = await SettingsStore.open(file, defaults);
+    expect(reopened.get()).toMatchObject({ theme: 'dark', concurrency: 3 });
+  });
+
+  it('flush waits for an update that has not been awaited yet', async () => {
+    const file = join(dir, 'settings.json');
+    const store = await SettingsStore.open(file, defaults);
+    void store.update({ theme: 'dark' });
+    await store.flush();
+    const reopened = await SettingsStore.open(file, defaults);
+    expect(reopened.get().theme).toBe('dark');
   });
 });

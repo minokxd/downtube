@@ -1,7 +1,8 @@
+import { promises as fs } from 'node:fs';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { JsonFile } from '../../src/main/json-store';
 
 interface Data {
@@ -65,5 +66,17 @@ describe('JsonFile', () => {
     const store = new JsonFile<Data>(file);
     await Promise.all([store.write({ count: 1 }), store.write({ count: 2 }), store.write({ count: 3 })]);
     expect((await store.read(defaults, sanitize)).value).toEqual({ count: 3 });
+  });
+
+  it('retries a transient read lock instead of treating a valid file as corrupt', async () => {
+    const store = new JsonFile<Data>(file);
+    await store.write({ count: 7 });
+    const spy = vi.spyOn(fs, 'readFile').mockRejectedValueOnce(Object.assign(new Error('busy'), { code: 'EBUSY' }));
+    try {
+      expect(await store.read(defaults, sanitize)).toEqual({ value: { count: 7 }, recovered: 'none' });
+      expect(spy).toHaveBeenCalledTimes(2);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
