@@ -236,7 +236,10 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
             const video = event.currentTarget;
             if (video.buffered.length > 0) setBuffered(video.buffered.end(video.buffered.length - 1));
           }}
-          onPlay={() => setPlaying(true)}
+          onPlay={() => {
+            setPlaying(true);
+            poke();
+          }}
           onPause={(event) => {
             setPlaying(false);
             const video = event.currentTarget;
