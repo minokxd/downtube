@@ -26,11 +26,13 @@ export interface Services {
 export interface ServiceOptions {
   userData: string;
   videosDir: string;
+  /** The system locale; picks the interface language on a first start. */
+  locale?: string;
   fetchImpl: FetchLike;
 }
 
 export async function createServices(options: ServiceOptions): Promise<Services> {
-  const settings = await SettingsStore.open(join(options.userData, 'settings.json'), defaultSettings(options.videosDir));
+  const settings = await SettingsStore.open(join(options.userData, 'settings.json'), defaultSettings(options.videosDir, options.locale));
   const library = await LibraryStore.open(join(options.userData, 'library.json'));
   const engine = new Engine({ binDir: join(options.userData, 'bin'), fetchImpl: options.fetchImpl });
   await engine.status();

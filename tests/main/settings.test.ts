@@ -26,6 +26,14 @@ describe('settings helpers', () => {
     expect(defaults.downloadDir).toBe(join(tmpdir(), 'Videos', 'Downtube'));
   });
 
+  it('starts in Turkish only on a Turkish system and in English everywhere else', () => {
+    expect(defaultSettings('V', 'tr-TR').language).toBe('tr');
+    expect(defaultSettings('V', 'tr').subtitles.langs).toEqual(['tr', 'en']);
+    expect(defaultSettings('V', 'en-US').language).toBe('en');
+    expect(defaultSettings('V', 'de-DE').language).toBe('en');
+    expect(defaultSettings('V', 'de-DE').subtitles.langs).toEqual(['en']);
+  });
+
   it('sanitize keeps valid fields and drops invalid or unknown ones', () => {
     const result = sanitizeSettings({ theme: 'neon', language: 'en', concurrency: 9, extra: true }, defaults);
     expect(result.theme).toBe('system');

@@ -30,6 +30,7 @@ async function bootstrap(): Promise<void> {
   const s = await createServices({
     userData: app.getPath('userData'),
     videosDir: app.getPath('videos'),
+    locale: app.getLocale(),
     fetchImpl: (url, init) => net.fetch(url, init),
   });
   services = s;

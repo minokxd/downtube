@@ -2,14 +2,16 @@ import { isAbsolute, join } from 'node:path';
 import { QUALITIES, type Quality, type Settings } from '@shared/types';
 import { JsonFile, type RecoveryState } from './json-store';
 
-export function defaultSettings(videosDir: string): Settings {
+/** `locale` is the system's (app.getLocale()); a first start follows it, Turkish or else English. */
+export function defaultSettings(videosDir: string, locale = 'tr'): Settings {
+  const turkish = locale.toLowerCase().startsWith('tr');
   return {
     theme: 'system',
-    language: 'tr',
+    language: turkish ? 'tr' : 'en',
     downloadDir: join(videosDir, 'Downtube'),
     defaultQuality: '1080',
     concurrency: 2,
-    subtitles: { enabled: true, langs: ['tr', 'en'], includeAuto: false },
+    subtitles: { enabled: true, langs: turkish ? ['tr', 'en'] : ['en'], includeAuto: false },
     clipboardWatch: true,
   };
 }
