@@ -2,71 +2,59 @@
 
 <h1 align="center">downtube</h1>
 
-<p align="center">YouTube videolarını, müziklerini, playlistlerini ve kanallarını indirip internetsiz izle.</p>
+<p align="center">Download YouTube videos, music, playlists and channels, and watch them offline.</p>
 
-![Kütüphane](docs/screenshots/library-dark.png)
+![Downtube library](docs/screenshots/library.png)
 
-## Özellikler
+## Features
 
-- **Video** — En iyi, 1080p, 720p ya da 480p; MP4 olarak kaydedilir.
-- **Müzik** — Kapak ve etiketleri gömülü MP3.
-- **Playlist ve kanallar** — Önce liste gelir, istediklerini seçersin; 100'er öğelik sayfalar.
-- **Boyutu önceden gör** — İndirmeden önce dosya boyutu (playlist ve kanallarda tahmini) ve diskteki boş alan; yer yetmeyecekse uyarır.
-- **Kendi playlistlerin** — Videoları ve şarkıları sürükleyip sol menüdeki playlistlerine bırak; sırala, emoji ver, arka arkaya oynat.
-- **Offline oynatıcı** — Altyazı, hız, resim içinde resim, tam ekran ve klavye kısayolları.
-- **Müzik çubuğu** — Sayfalar arasında çalmaya devam eder; sıra, karışık çalma, tekrar ve Windows medya tuşları.
-- **Kaldığın yerden devam** — Video ve şarkılar bıraktığın saniyeden başlar.
-- **Pano algılama** — YouTube linki kopyaladığında indirmeyi önerir.
-- **Gece ve Kağıt temaları**, Türkçe ve İngilizce arayüz.
+- **Videos** as MP4 in Best, 1080p, 720p or 480p.
+- **Music** as MP3 with cover art and tags.
+- **Playlists and channels** are listed first, so you pick what to download.
+- **Size before you download**, next to your free disk space, with a warning when it will not fit.
+- **Your own playlists**: drag videos and songs onto them in the sidebar, reorder them, give them an emoji and play them back to back.
+- **Offline player** with subtitles, speed control, picture-in-picture and keyboard shortcuts.
+- **Music bar** that keeps playing across pages, with a queue, shuffle, repeat and media keys.
+- **Resume** videos and songs where you left off.
+- **Clipboard detection**: copy a YouTube link and Downtube offers to download it.
+- Dark and light themes, English and Turkish interface.
 
-## Kurulum
+## Install
 
-[Releases](../../releases) sayfasından `Downtube-Setup-x.y.z.exe` dosyasını indirip çalıştır. Kod imzası olmadığı için Windows SmartScreen "bilinmeyen yayıncı" uyarısı verebilir: **Ek bilgi → Yine de çalıştır**. Kurulum masaüstüne ve Başlat menüsüne bir Downtube kısayolu ekler.
+1. Download `Downtube-Setup-x.y.z.exe` from [Releases](../../releases/latest).
+2. Run it. The installer is not code signed, so Windows SmartScreen may show "Windows protected your PC". Click **More info**, then **Run anyway**.
+3. Open Downtube from the desktop or Start menu shortcut.
 
-İlk açılışta Downtube, indirme motorunu resmi kaynaklarından kurar ve SHA-256 ile doğrular:
+On first launch Downtube downloads its engine from the official sources and checks every file against its published SHA-256 checksum. This needs an internet connection and can take a few minutes.
 
-| Bileşen | Kaynak |
+| Component | Source |
 |---|---|
 | [yt-dlp](https://github.com/yt-dlp/yt-dlp) | GitHub releases |
-| [Deno](https://github.com/denoland/deno) | GitHub releases (YouTube'un JavaScript doğrulamaları için gerekli) |
-| [ffmpeg](https://github.com/yt-dlp/FFmpeg-Builds) | Sistemde varsa o kullanılır, yoksa yt-dlp'nin derlemesi indirilir |
+| [Deno](https://github.com/denoland/deno) | GitHub releases, needed for YouTube's JavaScript checks |
+| [ffmpeg](https://github.com/yt-dlp/FFmpeg-Builds) | Your ffmpeg if it is on PATH, otherwise the yt-dlp build |
 
-yt-dlp günde en fazla bir kez, indirme yokken kendini günceller.
+After that, yt-dlp updates itself at most once a day, when nothing is downloading.
 
-## Geliştirme
+Requires Windows 10 or 11, 64-bit.
 
-Gereksinimler: Windows 10/11, Node.js 24, (testler için) PATH'te ffmpeg.
+## Development
+
+Requires Node.js 24, and ffmpeg on PATH for the tests.
 
 ```bash
 npm install
-npx install-electron # Electron 44 artık kurulumda ikilisini indirmez; npm run dev ve npm run test:e2e için gerekli
-npm run dev          # geliştirme modu
-npm test             # birim testleri
-npm run test:live    # gerçek YouTube indirmesi (ağ gerekir)
-npm run test:e2e     # Electron uçtan uca testi
-npm run dist         # Windows kurulum dosyası
+npx install-electron   # Electron 44 no longer downloads its binary on install
+npm run dev            # development mode
+npm test               # unit tests
+npm run test:live      # real YouTube downloads (needs network)
+npm run test:e2e       # Electron end-to-end tests
+npm run dist           # Windows installer
 ```
 
-Mimari ve kararlar: [`docs/superpowers/specs/2026-10-09-downtube-design.md`](docs/superpowers/specs/2026-10-09-downtube-design.md).
+## Legal
 
-## Yasal not
+Downtube is for personal use. You are responsible for respecting copyright and the [YouTube Terms of Service](https://www.youtube.com/t/terms) for anything you download.
 
-Downtube kişisel kullanım içindir. İndirdiğin içeriklerin telif haklarına ve [YouTube Hizmet Şartları](https://www.youtube.com/t/terms)'na uymak senin sorumluluğundadır.
+## License
 
----
-
-## English
-
-**downtube** downloads YouTube videos, music, playlists and channels and plays them offline.
-
-- Videos as MP4 (Best/1080p/720p/480p), music as MP3 with cover art and tags.
-- Playlists and channels are listed first so you pick what to download.
-- The download size (estimated for playlists and channels) and your free disk space are shown before you start.
-- Your own playlists: drag videos and songs onto them in the sidebar, reorder them, give them an emoji and play them back to back.
-- Offline player with subtitles, speed control, picture-in-picture and keyboard shortcuts.
-- A music bar that keeps playing across pages, with queue, shuffle, repeat and media keys.
-- Resume where you left off, clipboard link detection, dark (Gece) and light (Kağıt) themes, Turkish and English UI.
-
-Install it with `Downtube-Setup-x.y.z.exe` from [Releases](../../releases); the installer adds Desktop and Start menu shortcuts. On first launch Downtube installs yt-dlp, Deno and (if missing) ffmpeg from their official releases and verifies them with SHA-256. Downtube is for personal use; respect copyright and YouTube's Terms of Service.
-
-License: [MIT](LICENSE)
+[MIT](LICENSE)

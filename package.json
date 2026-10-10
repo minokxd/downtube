@@ -1,8 +1,8 @@
 {
   "name": "downtube",
   "productName": "Downtube",
-  "version": "0.1.0",
-  "description": "YouTube video, müzik, playlist ve kanal indirici + offline oynatıcı",
+  "version": "1.0.0",
+  "description": "Download YouTube videos, music, playlists and channels and watch them offline.",
   "main": "./out/main/index.js",
   "author": "minok",
   "license": "MIT",
