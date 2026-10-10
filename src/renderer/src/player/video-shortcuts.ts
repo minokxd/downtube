@@ -9,7 +9,9 @@ export type ShortcutAction =
   | 'fullscreen'
   | 'mute'
   | 'subtitles'
-  | 'close';
+  | 'close'
+  | 'next'
+  | 'previous';
 
 const KEYS: Record<string, ShortcutAction> = {
   ' ': 'toggle',
@@ -31,6 +33,11 @@ const REPEATABLE: ReadonlySet<ShortcutAction> = new Set(['back5', 'forward5', 'b
 
 export const repeatsWhenHeld = (action: ShortcutAction): boolean => REPEATABLE.has(action);
 
-export function shortcutAction(key: string): ShortcutAction | null {
-  return KEYS[key.toLowerCase()] ?? null;
+// Shift+N / Shift+P move through a video queue, as on YouTube.
+const SHIFT_KEYS: Record<string, ShortcutAction> = { n: 'next', p: 'previous' };
+
+export function shortcutAction(key: string, shift = false): ShortcutAction | null {
+  const lower = key.toLowerCase();
+  if (shift && Object.hasOwn(SHIFT_KEYS, lower)) return SHIFT_KEYS[lower] ?? null;
+  return KEYS[lower] ?? null;
 }

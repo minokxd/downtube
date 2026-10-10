@@ -1,4 +1,4 @@
-import type { Collection, LibraryItem } from '@shared/types';
+import type { Collection, LibraryItem, MediaKind } from '@shared/types';
 
 export type LibraryTab = 'all' | 'video' | 'music' | 'collections';
 export type LibrarySort = 'newest' | 'title';
@@ -47,4 +47,8 @@ export function resumeRatio(item: LibraryItem): number {
   if (item.progress.completed || item.durationSec <= 0) return 0;
   const ratio = item.progress.positionSec / item.durationSec;
   return ratio > 0.01 ? Math.min(1, ratio) : 0;
+}
+
+export function playableIds(list: readonly LibraryItem[], kind: MediaKind): string[] {
+  return list.filter((item) => item.kind === kind && !item.missing).map((item) => item.id);
 }

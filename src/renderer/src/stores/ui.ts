@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { VideoQueue } from '../player/video-queue';
 
 export type Page = 'library' | 'downloads' | 'settings';
 
@@ -25,13 +26,16 @@ export interface ToastInput {
 interface UiState {
   page: Page;
   addUrl: string | null;
-  videoItemId: string | null;
+  /** The open video player's queue; a single video is a queue of one. */
+  video: VideoQueue | null;
   toasts: Toast[];
   skipSetup: boolean;
   setPage: (page: Page) => void;
   openAdd: (url: string) => void;
   closeAdd: () => void;
   openVideo: (itemId: string) => void;
+  playVideos: (ids: string[], startIndex?: number) => void;
+  setVideoIndex: (index: number) => void;
   closeVideo: () => void;
   pushToast: (toast: ToastInput) => number;
   dismissToast: (id: number) => void;
@@ -43,14 +47,20 @@ let nextToastId = 1;
 export const useUi = create<UiState>()((set) => ({
   page: 'library',
   addUrl: null,
-  videoItemId: null,
+  video: null,
   toasts: [],
   skipSetup: false,
   setPage: (page) => set({ page }),
   openAdd: (url) => set({ addUrl: url }),
   closeAdd: () => set({ addUrl: null }),
-  openVideo: (itemId) => set({ videoItemId: itemId }),
-  closeVideo: () => set({ videoItemId: null }),
+  openVideo: (itemId) => set({ video: { ids: [itemId], index: 0 } }),
+  playVideos: (ids, startIndex = 0) => {
+    if (ids.length === 0) return;
+    set({ video: { ids: [...ids], index: Math.min(Math.max(0, startIndex), ids.length - 1) } });
+  },
+  setVideoIndex: (index) =>
+    set((state) => (state.video && index >= 0 && index < state.video.ids.length ? { video: { ...state.video, index } } : {})),
+  closeVideo: () => set({ video: null }),
   pushToast: ({ message, tone = 'info', action, durationMs = 5000 }) => {
     const id = nextToastId++;
     set((state) => ({ toasts: [...state.toasts.slice(-3), { id, message, tone, action, durationMs }] }));

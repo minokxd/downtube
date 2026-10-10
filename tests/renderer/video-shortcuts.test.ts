@@ -24,6 +24,17 @@ describe('shortcutAction', () => {
     expect(shortcutAction('x')).toBeNull();
     expect(shortcutAction('Enter')).toBeNull();
   });
+
+  it('maps Shift+N and Shift+P to next and previous', () => {
+    expect(shortcutAction('N', true)).toBe('next');
+    expect(shortcutAction('P', true)).toBe('previous');
+  });
+
+  it('ignores N and P without Shift and keeps the other keys under Shift', () => {
+    expect(shortcutAction('n')).toBeNull();
+    expect(shortcutAction('p')).toBeNull();
+    expect(shortcutAction('K', true)).toBe('toggle');
+  });
 });
 
 describe('repeatsWhenHeld', () => {
@@ -31,7 +42,7 @@ describe('repeatsWhenHeld', () => {
     expect(repeatsWhenHeld(action)).toBe(true);
   });
 
-  it.each(['toggle', 'fullscreen', 'mute', 'subtitles', 'close'] as ShortcutAction[])('fires %s only once per key press', (action) => {
+  it.each(['toggle', 'fullscreen', 'mute', 'subtitles', 'close', 'next', 'previous'] as ShortcutAction[])('fires %s only once per key press', (action) => {
     expect(repeatsWhenHeld(action)).toBe(false);
   });
 });

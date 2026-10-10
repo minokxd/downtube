@@ -5,6 +5,7 @@ import {
   filterCollections,
   filterItems,
   normalizeSearch,
+  playableIds,
   resumeRatio,
 } from '../../src/renderer/src/pages/library/library-logic';
 
@@ -68,5 +69,18 @@ describe('resumeRatio', () => {
     expect(resumeRatio(item('a', { progress: { positionSec: 30, completed: true, updatedAt: '' } }))).toBe(0);
     expect(resumeRatio(item('a', { durationSec: 0, progress: { positionSec: 30, completed: false, updatedAt: '' } }))).toBe(0);
     expect(resumeRatio(item('a'))).toBe(0);
+  });
+});
+
+describe('playableIds', () => {
+  it('keeps the playable items of one kind in order', () => {
+    const list = [
+      item('a', { kind: 'video' }),
+      item('b', { kind: 'audio' }),
+      item('c', { kind: 'video', missing: true }),
+      item('d', { kind: 'video' }),
+    ];
+    expect(playableIds(list, 'video')).toEqual(['a', 'd']);
+    expect(playableIds(list, 'audio')).toEqual(['b']);
   });
 });

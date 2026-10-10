@@ -1,3 +1,11 @@
+/* Stays mounted while the queue moves on, so fullscreen holds and the library never flashes between videos. */
+.video-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: #000;
+}
+
 .video-overlay {
   position: fixed;
   inset: 0;

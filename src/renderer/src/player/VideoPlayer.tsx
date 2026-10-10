@@ -1,5 +1,28 @@
-import { Captions, ChevronLeft, Gauge, Maximize, Minimize, Pause, PictureInPicture2, Play, Volume2, VolumeX } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  Captions,
+  ChevronLeft,
+  Gauge,
+  Maximize,
+  Minimize,
+  Pause,
+  PictureInPicture2,
+  Play,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from 'react';
 import type { LibraryItem } from '@shared/types';
 import { useLanguage, useT } from '../i18n';
 import { formatDuration } from '../lib/format';
@@ -10,6 +33,7 @@ import { usePlayer } from '../stores/player';
 import { useUi } from '../stores/ui';
 import { createProgressSaver } from './progress-saver';
 import { resumeStart } from './resume';
+import { stepIndex } from './video-queue';
 import { repeatsWhenHeld, shortcutAction, type ShortcutAction } from './video-shortcuts';
 import './video-player.css';
 
@@ -22,18 +46,47 @@ const fill = (percent: number): CSSProperties => ({ '--fill': `${percent}%` }) a
 // Before metadata loads, currentTime is 0 and duration is NaN. Saving then would overwrite the stored resume position.
 const hasMetadata = (video: HTMLVideoElement): boolean => video.readyState >= HTMLMediaElement.HAVE_METADATA;
 
-export function VideoPlayer() {
-  const itemId = useUi((s) => s.videoItemId);
-  const item = useLibrary((s) => (itemId ? s.items.find((i) => i.id === itemId) : undefined));
-  if (!itemId) return null;
-  return <VideoPlayerView key={itemId} itemId={itemId} item={item} />;
+/** Volume, mute and speed carry over to the next video in the queue (and to the next time the player opens). */
+interface PlaybackSession {
+  volume: number;
+  muted: boolean;
+  speed: number;
 }
 
-function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem | undefined }) {
+export function VideoPlayer() {
+  const queue = useUi((s) => s.video);
+  const itemId = queue ? (queue.ids[queue.index] ?? null) : null;
+  const item = useLibrary((s) => (itemId ? s.items.find((i) => i.id === itemId) : undefined));
+  // The shell is the fullscreen element. It is not keyed by the item, so fullscreen survives moving to the next video.
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [session, setSession] = useState<PlaybackSession>({ volume: 1, muted: false, speed: 1 });
+  if (!itemId) return null;
+  return (
+    <div ref={shellRef} className="video-shell">
+      <VideoPlayerView key={itemId} itemId={itemId} item={item} shellRef={shellRef} session={session} setSession={setSession} />
+    </div>
+  );
+}
+
+function VideoPlayerView({
+  itemId,
+  item,
+  shellRef,
+  session,
+  setSession,
+}: {
+  itemId: string;
+  item: LibraryItem | undefined;
+  shellRef: RefObject<HTMLDivElement | null>;
+  session: PlaybackSession;
+  setSession: Dispatch<SetStateAction<PlaybackSession>>;
+}) {
   const t = useT();
   const language = useLanguage();
   const close = useUi((s) => s.closeVideo);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const queue = useUi((s) => s.video);
+  const setVideoIndex = useUi((s) => s.setVideoIndex);
+  const items = useLibrary((s) => s.items);
   const videoRef = useRef<HTMLVideoElement>(null);
   const idleTimer = useRef<number | undefined>(undefined);
   const saver = useMemo(
@@ -45,15 +98,31 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(item?.durationSec ?? 0);
   const [buffered, setBuffered] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [muted, setMuted] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  const { volume, muted, speed } = session;
+  const setVolume = useCallback(
+    (update: SetStateAction<number>) =>
+      setSession((s) => ({ ...s, volume: typeof update === 'function' ? update(s.volume) : update })),
+    [setSession],
+  );
+  const setMuted = useCallback(
+    (update: SetStateAction<boolean>) =>
+      setSession((s) => ({ ...s, muted: typeof update === 'function' ? update(s.muted) : update })),
+    [setSession],
+  );
+  const setSpeed = useCallback((value: number) => setSession((s) => ({ ...s, speed: value })), [setSession]);
   const [subtitle, setSubtitle] = useState<string | null>(null);
   const [menu, setMenu] = useState<'speed' | 'subtitles' | null>(null);
   const [idle, setIdle] = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(() => document.fullscreenElement !== null);
   const [resumedFrom, setResumedFrom] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
+  const lookup = useMemo(() => {
+    const byId = new Map(items.map((i) => [i.id, i]));
+    return (id: string) => byId.get(id);
+  }, [items]);
+  const nextIndex = queue ? stepIndex(queue, 1, lookup) : null;
+  const prevIndex = queue ? stepIndex(queue, -1, lookup) : null;
+  const inQueue = (queue?.ids.length ?? 0) > 1;
   const subtitles = item?.subtitles ?? [];
   const firstSubtitle = subtitles[0]?.lang ?? null;
   const unavailable = !item || Boolean(item.missing) || failed;
@@ -129,8 +198,8 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
-    else containerRef.current?.requestFullscreen().catch(() => undefined);
-  }, []);
+    else shellRef.current?.requestFullscreen().catch(() => undefined);
+  }, [shellRef]);
 
   const togglePip = useCallback(() => {
     const video = videoRef.current;
@@ -138,6 +207,16 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
     if (document.pictureInPictureElement) document.exitPictureInPicture().catch(() => undefined);
     else video.requestPictureInPicture().catch(() => undefined);
   }, []);
+
+  const goTo = useCallback(
+    (index: number | null) => {
+      if (index === null) return;
+      const video = videoRef.current;
+      if (video && hasMetadata(video)) saver.flush(itemId, video.currentTime, video.duration);
+      setVideoIndex(index);
+    },
+    [itemId, saver, setVideoIndex],
+  );
 
   const run = useCallback(
     (action: ShortcutAction) => {
@@ -172,6 +251,12 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
         case 'subtitles':
           setSubtitle((current) => (current ? null : firstSubtitle));
           break;
+        case 'next':
+          goTo(nextIndex);
+          break;
+        case 'previous':
+          goTo(prevIndex);
+          break;
         case 'close':
           if (menu) setMenu(null);
           else if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
@@ -180,13 +265,13 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
       }
       poke();
     },
-    [togglePlay, seekBy, changeVolume, toggleFullscreen, closePlayer, poke, firstSubtitle, menu],
+    [togglePlay, seekBy, changeVolume, toggleFullscreen, closePlayer, poke, firstSubtitle, menu, setMuted, goTo, nextIndex, prevIndex],
   );
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.altKey || event.metaKey) return;
-      const action = shortcutAction(event.key);
+      const action = shortcutAction(event.key, event.shiftKey);
       if (!action) return;
       event.preventDefault();
       // A held key would re-toggle play/fullscreen/mute dozens of times a second.
@@ -203,7 +288,6 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
 
   return (
     <div
-      ref={containerRef}
       className={`video-overlay${idle && playing && !menu ? ' is-idle' : ''}`}
       role="dialog"
       aria-modal="true"
@@ -250,6 +334,7 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
           onEnded={(event) => {
             const video = event.currentTarget;
             if (hasMetadata(video)) saver.flush(itemId, video.duration, video.duration);
+            if (nextIndex !== null) setVideoIndex(nextIndex);
           }}
           onError={() => setFailed(true)}
           onClick={togglePlay}
@@ -315,9 +400,31 @@ function VideoPlayerView({ itemId, item }: { itemId: string; item: LibraryItem |
             />
           </div>
           <div className="video-buttons">
+            {inQueue && (
+              <button
+                type="button"
+                className="icon-btn on-video"
+                aria-label={t('player.previous')}
+                disabled={prevIndex === null}
+                onClick={() => goTo(prevIndex)}
+              >
+                <SkipBack size={18} aria-hidden="true" />
+              </button>
+            )}
             <button type="button" className="icon-btn on-video" aria-label={playing ? t('player.pause') : t('player.play')} onClick={togglePlay}>
               {playing ? <Pause size={20} aria-hidden="true" /> : <Play size={20} aria-hidden="true" />}
             </button>
+            {inQueue && (
+              <button
+                type="button"
+                className="icon-btn on-video"
+                aria-label={t('player.next')}
+                disabled={nextIndex === null}
+                onClick={() => goTo(nextIndex)}
+              >
+                <SkipForward size={18} aria-hidden="true" />
+              </button>
+            )}
             <button type="button" className="icon-btn on-video" aria-label={t('player.mute')} onClick={() => setMuted((value) => !value)}>
               {shownVolume === 0 ? <VolumeX size={18} aria-hidden="true" /> : <Volume2 size={18} aria-hidden="true" />}
             </button>
