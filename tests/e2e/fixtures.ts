@@ -25,14 +25,22 @@ export async function createFixture(): Promise<Fixture> {
   const videoThumb = join(videoDir, 'Sample video [e2eVideo001].jpg');
   const song = join(musicDir, 'Sample song [e2eAudio001].mp3');
   const songThumb = join(musicDir, 'Sample song [e2eAudio001].jpg');
+  const second = join(videoDir, 'Second video [e2eVideo002].mp4');
+  const secondThumb = join(videoDir, 'Second video [e2eVideo002].jpg');
   ffmpeg([
     '-f', 'lavfi', '-i', 'testsrc2=duration=6:size=640x360:rate=30',
     '-f', 'lavfi', '-i', 'sine=frequency=330:duration=6',
     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', video,
   ]);
+  ffmpeg([
+    '-f', 'lavfi', '-i', 'testsrc2=duration=4:size=640x360:rate=30',
+    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=4',
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', second,
+  ]);
   ffmpeg(['-f', 'lavfi', '-i', 'sine=frequency=523:duration=6', '-c:a', 'libmp3lame', '-q:a', '4', song]);
   ffmpeg(['-f', 'lavfi', '-i', 'color=c=0x2a2638:size=640x360', '-frames:v', '1', videoThumb]);
   await copyFile(videoThumb, songThumb);
+  await copyFile(videoThumb, secondThumb);
 
   const now = new Date().toISOString();
   const base = {
@@ -48,6 +56,7 @@ export async function createFixture(): Promise<Fixture> {
     items: [
       { ...base, id: 'e2e-video', videoId: 'e2eVideo001', kind: 'video', title: 'Sample video', channel: 'Downtube', durationSec: 6, filePath: video, thumbPath: videoThumb, sourceUrl: 'https://www.youtube.com/watch?v=e2eVideo001' },
       { ...base, id: 'e2e-audio', videoId: 'e2eAudio001', kind: 'audio', title: 'Sample song', channel: 'Downtube', artist: 'Downtube', durationSec: 6, filePath: song, thumbPath: songThumb, sourceUrl: 'https://www.youtube.com/watch?v=e2eAudio001' },
+      { ...base, id: 'e2e-video-2', videoId: 'e2eVideo002', kind: 'video', title: 'Second video', channel: 'Downtube', durationSec: 4, filePath: second, thumbPath: secondThumb, sourceUrl: 'https://www.youtube.com/watch?v=e2eVideo002' },
     ],
     collections: [],
   };

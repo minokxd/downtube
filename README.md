@@ -12,6 +12,7 @@
 - **Müzik** — Kapak ve etiketleri gömülü MP3.
 - **Playlist ve kanallar** — Önce liste gelir, istediklerini seçersin; 100'er öğelik sayfalar.
 - **Boyutu önceden gör** — İndirmeden önce dosya boyutu (playlist ve kanallarda tahmini) ve diskteki boş alan; yer yetmeyecekse uyarır.
+- **Kendi playlistlerin** — Videoları ve şarkıları sürükleyip sol menüdeki playlistlerine bırak; sırala, emoji ver, arka arkaya oynat.
 - **Offline oynatıcı** — Altyazı, hız, resim içinde resim, tam ekran ve klavye kısayolları.
 - **Müzik çubuğu** — Sayfalar arasında çalmaya devam eder; sıra, karışık çalma, tekrar ve Windows medya tuşları.
 - **Kaldığın yerden devam** — Video ve şarkılar bıraktığın saniyeden başlar.
@@ -61,6 +62,7 @@ Downtube kişisel kullanım içindir. İndirdiğin içeriklerin telif haklarına
 - Videos as MP4 (Best/1080p/720p/480p), music as MP3 with cover art and tags.
 - Playlists and channels are listed first so you pick what to download.
 - The download size (estimated for playlists and channels) and your free disk space are shown before you start.
+- Your own playlists: drag videos and songs onto them in the sidebar, reorder them, give them an emoji and play them back to back.
 - Offline player with subtitles, speed control, picture-in-picture and keyboard shortcuts.
 - A music bar that keeps playing across pages, with queue, shuffle, repeat and media keys.
 - Resume where you left off, clipboard link detection, dark (Gece) and light (Kağıt) themes, Turkish and English UI.
