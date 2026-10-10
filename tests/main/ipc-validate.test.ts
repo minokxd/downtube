@@ -3,8 +3,13 @@ import {
   IpcValidationError,
   assertBoolean,
   assertId,
+  assertIdList,
   assertJobInputs,
   assertOptionalDuration,
+  assertOptionalId,
+  assertPlaylistEmoji,
+  assertPlaylistPatch,
+  assertPlaylistTitle,
   assertPosition,
   assertSettingsPatch,
   assertStart,
@@ -116,5 +121,46 @@ describe('assertSettingsPatch', () => {
     [new Date()],
   ])('rejects %#', (value) => {
     expect(() => assertSettingsPatch(value)).toThrow(IpcValidationError);
+  });
+});
+
+describe('playlist assertions', () => {
+  it('accepts a trimmed title of 1–80 characters', () => {
+    expect(assertPlaylistTitle('  Kedi videoları ')).toBe('Kedi videoları');
+    expect(assertPlaylistTitle('x'.repeat(80))).toHaveLength(80);
+  });
+
+  it.each(['', '   ', 'x'.repeat(81), 'a\nb', 5, null])('rejects the title %j', (value) => {
+    expect(() => assertPlaylistTitle(value)).toThrow(IpcValidationError);
+  });
+
+  it('accepts only listed emoji or nothing', () => {
+    expect(assertPlaylistEmoji(undefined)).toBeUndefined();
+    expect(assertPlaylistEmoji('🐱')).toBe('🐱');
+    expect(() => assertPlaylistEmoji('🦄')).toThrow(IpcValidationError);
+    expect(() => assertPlaylistEmoji('<b>')).toThrow(IpcValidationError);
+  });
+
+  it('accepts a title/emoji patch and nothing else', () => {
+    expect(assertPlaylistPatch({ title: ' A ', emoji: null })).toEqual({ title: 'A', emoji: null });
+    expect(assertPlaylistPatch({ emoji: '🎵' })).toEqual({ emoji: '🎵' });
+    expect(() => assertPlaylistPatch({ itemIds: [] })).toThrow(IpcValidationError);
+    expect(() => assertPlaylistPatch({ title: '' })).toThrow(IpcValidationError);
+    expect(() => assertPlaylistPatch(null)).toThrow(IpcValidationError);
+    expect(() => assertPlaylistPatch([])).toThrow(IpcValidationError);
+  });
+
+  it('accepts a de-duplicated list of 1–5000 ids', () => {
+    expect(assertIdList(['a-1', 'b', 'a-1'])).toEqual(['a-1', 'b']);
+    expect(() => assertIdList([])).toThrow(IpcValidationError);
+    expect(() => assertIdList(['../x'])).toThrow(IpcValidationError);
+    expect(() => assertIdList(Array.from({ length: 5001 }, (_, i) => `id${i}`))).toThrow(IpcValidationError);
+    expect(() => assertIdList('a')).toThrow(IpcValidationError);
+  });
+
+  it('accepts null or an id as the move anchor', () => {
+    expect(assertOptionalId(null)).toBeNull();
+    expect(assertOptionalId('abc')).toBe('abc');
+    expect(() => assertOptionalId(undefined)).toThrow(IpcValidationError);
   });
 });

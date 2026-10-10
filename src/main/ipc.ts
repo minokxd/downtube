@@ -6,8 +6,13 @@ import {
   IpcValidationError,
   assertBoolean,
   assertId,
+  assertIdList,
   assertJobInputs,
   assertOptionalDuration,
+  assertOptionalId,
+  assertPlaylistEmoji,
+  assertPlaylistPatch,
+  assertPlaylistTitle,
   assertPosition,
   assertSettingsPatch,
   assertStart,
@@ -78,6 +83,23 @@ export function registerIpc(services: Services, getWindow: () => BrowserWindow |
     const item = services.library.get(assertId(id));
     if (item) shell.showItemInFolder(item.filePath);
   });
+
+  ipcMain.handle(IPC.playlistsCreate, (_event, title: unknown, emoji: unknown) =>
+    services.library.createPlaylist(assertPlaylistTitle(title), assertPlaylistEmoji(emoji)),
+  );
+  ipcMain.handle(IPC.playlistsUpdate, (_event, id: unknown, patch: unknown) =>
+    services.library.updatePlaylist(assertId(id), assertPlaylistPatch(patch)),
+  );
+  ipcMain.handle(IPC.playlistsDelete, (_event, id: unknown) => services.library.deletePlaylist(assertId(id)));
+  ipcMain.handle(IPC.playlistsAddItems, (_event, id: unknown, itemIds: unknown) =>
+    services.library.addToPlaylist(assertId(id), assertIdList(itemIds)),
+  );
+  ipcMain.handle(IPC.playlistsRemoveItems, (_event, id: unknown, itemIds: unknown) =>
+    services.library.removeFromPlaylist(assertId(id), assertIdList(itemIds)),
+  );
+  ipcMain.handle(IPC.playlistsMoveItems, (_event, id: unknown, itemIds: unknown, beforeId: unknown) =>
+    services.library.movePlaylistItems(assertId(id), assertIdList(itemIds), assertOptionalId(beforeId)),
+  );
 
   ipcMain.handle(IPC.settingsGet, () => services.settings.get());
   ipcMain.handle(IPC.settingsUpdate, (_event, patch: unknown) => services.settings.update(assertSettingsPatch(patch)));

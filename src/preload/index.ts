@@ -37,6 +37,14 @@ const api: DowntubeApi = {
     showInFolder: (id) => ipcRenderer.invoke(IPC.libraryShowInFolder, id),
     onChanged: (callback) => subscribe(IPC.libraryChanged, callback),
   },
+  playlists: {
+    create: (title, emoji) => ipcRenderer.invoke(IPC.playlistsCreate, title, emoji),
+    update: (id, patch) => ipcRenderer.invoke(IPC.playlistsUpdate, id, patch),
+    remove: (id) => ipcRenderer.invoke(IPC.playlistsDelete, id),
+    addItems: (id, itemIds) => ipcRenderer.invoke(IPC.playlistsAddItems, id, itemIds),
+    removeItems: (id, itemIds) => ipcRenderer.invoke(IPC.playlistsRemoveItems, id, itemIds),
+    moveItems: (id, itemIds, beforeId) => ipcRenderer.invoke(IPC.playlistsMoveItems, id, itemIds, beforeId),
+  },
   settings: {
     get: () => ipcRenderer.invoke(IPC.settingsGet),
     update: (patch) => ipcRenderer.invoke(IPC.settingsUpdate, patch),

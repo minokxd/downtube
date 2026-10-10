@@ -1,4 +1,6 @@
-import { QUALITIES, type NewJobInput, type Quality, type Settings } from '@shared/types';
+import { isPlaylistEmoji } from '@shared/playlist-emojis';
+import { cleanPlaylistTitle } from '@shared/playlist-ops';
+import { QUALITIES, type NewJobInput, type PlaylistPatch, type Quality, type Settings } from '@shared/types';
 import { VIDEO_ID_RE, classifyUrl } from '@shared/youtube-url';
 
 export class IpcValidationError extends Error {
@@ -89,4 +91,33 @@ function assertJobInput(value: unknown): NewJobInput {
 export function assertJobInputs(value: unknown): NewJobInput[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > 500) return fail('invalid job list');
   return value.map(assertJobInput);
+}
+
+export function assertPlaylistTitle(value: unknown): string {
+  return cleanPlaylistTitle(value) ?? fail('invalid playlist title');
+}
+
+export function assertPlaylistEmoji(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  return isPlaylistEmoji(value) ? value : fail('invalid playlist emoji');
+}
+
+export function assertPlaylistPatch(value: unknown): PlaylistPatch {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return fail('invalid playlist patch');
+  const v = value as Record<string, unknown>;
+  if (Object.keys(v).some((key) => key !== 'title' && key !== 'emoji')) return fail('invalid playlist patch');
+  const patch: PlaylistPatch = {};
+  if (v.title !== undefined) patch.title = assertPlaylistTitle(v.title);
+  if (v.emoji === null) patch.emoji = null;
+  else if (v.emoji !== undefined) patch.emoji = assertPlaylistEmoji(v.emoji);
+  return patch;
+}
+
+export function assertIdList(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > 5000) return fail('invalid id list');
+  return [...new Set(value.map(assertId))];
+}
+
+export function assertOptionalId(value: unknown): string | null {
+  return value === null ? null : assertId(value);
 }

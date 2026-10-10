@@ -5,6 +5,9 @@ import type {
   Job,
   LibrarySnapshot,
   NewJobInput,
+  Playlist,
+  PlaylistAddResult,
+  PlaylistPatch,
   ProbeResponse,
   Settings,
   UpdateResult,
@@ -32,6 +35,12 @@ export const IPC = {
   libraryMarkPlayed: 'library:mark-played',
   libraryShowInFolder: 'library:show-in-folder',
   libraryChanged: 'library:changed',
+  playlistsCreate: 'playlists:create',
+  playlistsUpdate: 'playlists:update',
+  playlistsDelete: 'playlists:delete',
+  playlistsAddItems: 'playlists:add-items',
+  playlistsRemoveItems: 'playlists:remove-items',
+  playlistsMoveItems: 'playlists:move-items',
   settingsGet: 'settings:get',
   settingsUpdate: 'settings:update',
   settingsChooseDir: 'settings:choose-dir',
@@ -74,6 +83,14 @@ export interface DowntubeApi {
     markPlayed(id: string): Promise<void>;
     showInFolder(id: string): Promise<void>;
     onChanged(callback: (snapshot: LibrarySnapshot) => void): Unsubscribe;
+  };
+  playlists: {
+    create(title: string, emoji?: string): Promise<Playlist>;
+    update(id: string, patch: PlaylistPatch): Promise<void>;
+    remove(id: string): Promise<void>;
+    addItems(id: string, itemIds: string[]): Promise<PlaylistAddResult>;
+    removeItems(id: string, itemIds: string[]): Promise<void>;
+    moveItems(id: string, itemIds: string[], beforeId: string | null): Promise<void>;
   };
   settings: {
     get(): Promise<Settings>;
