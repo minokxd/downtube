@@ -68,6 +68,26 @@ export interface LibrarySnapshot {
   collections: Collection[];
 }
 
+export interface Playlist {
+  id: string;
+  title: string;
+  emoji?: string;
+  /** Playlist order; no repeats. */
+  itemIds: string[];
+  createdAt: string;
+}
+
+export interface PlaylistAddResult {
+  added: number;
+  already: number;
+}
+
+/** `emoji: null` removes the emoji. */
+export interface PlaylistPatch {
+  title?: string;
+  emoji?: string | null;
+}
+
 export type JobStatus = 'queued' | 'downloading' | 'processing' | 'paused' | 'done' | 'failed' | 'canceled';
 export type JobStage = 'download' | 'merge' | 'convert' | 'thumbnail' | 'subtitles';
 
