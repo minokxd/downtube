@@ -1,0 +1,129 @@
+.playlist-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  margin-top: 20px;
+}
+
+.playlist-nav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 6px 12px;
+}
+
+.playlist-nav-title {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.playlist-nav-add {
+  width: 28px;
+  height: 28px;
+}
+
+.playlist-nav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.playlist-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  text-align: left;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.playlist-row:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.playlist-row.is-active {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.playlist-emoji {
+  flex-shrink: 0;
+  width: 18px;
+  font-size: 15px;
+  line-height: 1;
+  text-align: center;
+}
+
+.playlist-row-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playlist-row-count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.playlist-row.is-editing {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.playlist-row-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.emoji-menu {
+  padding: 8px;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 32px);
+  gap: 2px;
+}
+
+.emoji-grid .emoji-cell {
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 18px;
+}
+
+.emoji-grid .emoji-cell.is-on {
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.emoji-grid .emoji-none {
+  grid-column: 1 / -1;
+  justify-content: center;
+  margin-top: 4px;
+  color: var(--text-muted);
+}

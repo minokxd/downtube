@@ -3,6 +3,7 @@ import type { LibraryItem } from '@shared/types';
 import { LibraryThumb } from '../../components/LibraryThumb';
 import { useT } from '../../i18n';
 import { formatDuration } from '../../lib/format';
+import { menuPoint } from '../../lib/menu-point';
 import { resumeRatio } from './library-logic';
 
 export interface MediaCardProps {
@@ -21,7 +22,8 @@ export function MediaCard({ item, onPlay, onMenu, onRedownload, onRemoveMissing 
       className={`card${item.missing ? ' is-missing' : ''}`}
       onContextMenu={(event) => {
         event.preventDefault();
-        onMenu(item, event.clientX, event.clientY);
+        const at = menuPoint(event);
+        onMenu(item, at.x, at.y);
       }}
     >
       <button

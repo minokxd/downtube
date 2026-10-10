@@ -3,6 +3,7 @@ import type { LibraryItem } from '@shared/types';
 import { LibraryThumb } from '../../components/LibraryThumb';
 import { useT } from '../../i18n';
 import { formatDuration } from '../../lib/format';
+import { menuPoint } from '../../lib/menu-point';
 import { usePlayer } from '../../stores/player';
 
 export function MusicList({
@@ -39,7 +40,8 @@ export function MusicList({
             onDoubleClick={() => onPlay(item)}
             onContextMenu={(event) => {
               event.preventDefault();
-              onMenu(item, event.clientX, event.clientY);
+              const at = menuPoint(event);
+              onMenu(item, at.x, at.y);
             }}
           >
             <span className="track-index">
