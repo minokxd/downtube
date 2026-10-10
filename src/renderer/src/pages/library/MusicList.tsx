@@ -5,15 +5,21 @@ import { useT } from '../../i18n';
 import { formatDuration } from '../../lib/format';
 import { menuPoint } from '../../lib/menu-point';
 import { usePlayer } from '../../stores/player';
+import type { Modifiers } from './use-selection';
 
 export function MusicList({
   items,
   onPlay,
   onMenu,
+  selectedIds,
+  onSelectClick,
 }: {
   items: readonly LibraryItem[];
   onPlay: (item: LibraryItem) => void;
   onMenu: (item: LibraryItem, x: number, y: number) => void;
+  selectedIds?: ReadonlySet<string>;
+  /** Ctrl/Shift+click on a row selects it; returns true when handled. */
+  onSelectClick?: (item: LibraryItem, modifiers: Modifiers) => boolean;
 }) {
   const t = useT();
   const currentId = usePlayer((s) => s.order[s.index]);
@@ -36,7 +42,13 @@ export function MusicList({
           <div
             key={item.id}
             role="row"
-            className={`track${isCurrent ? ' is-current' : ''}${item.missing ? ' is-missing' : ''}`}
+            className={`track${isCurrent ? ' is-current' : ''}${item.missing ? ' is-missing' : ''}${selectedIds?.has(item.id) ? ' is-selected' : ''}`}
+            aria-selected={selectedIds?.has(item.id) || undefined}
+            onClickCapture={(event) => {
+              if (!(event.ctrlKey || event.metaKey || event.shiftKey) || !onSelectClick?.(item, event)) return;
+              event.preventDefault();
+              event.stopPropagation();
+            }}
             onDoubleClick={() => onPlay(item)}
             onContextMenu={(event) => {
               event.preventDefault();

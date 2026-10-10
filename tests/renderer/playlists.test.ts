@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LibraryItem, Playlist } from '@shared/types';
-import { addResultMessage, coverItem, sortPlaylists, totalDuration } from '../../src/renderer/src/lib/playlists';
+import { addResultMessage, coverItem, sortPlaylists, stepAnchor, totalDuration } from '../../src/renderer/src/lib/playlists';
 
 const playlist = (title: string): Playlist => ({ id: title, title, itemIds: [], createdAt: '' });
 const media = (id: string, durationSec: number, thumbPath?: string) =>
@@ -35,5 +35,24 @@ describe('coverItem', () => {
   it('takes the first item that has a thumbnail', () => {
     expect(coverItem([media('a', 1), media('b', 1, 'b.jpg'), media('c', 1, 'c.jpg')])?.id).toBe('b');
     expect(coverItem([media('a', 1)])).toBeUndefined();
+  });
+});
+
+describe('stepAnchor', () => {
+  const list = ['a', 'b', 'c'];
+
+  it('moves one step earlier by anchoring on the previous id', () => {
+    expect(stepAnchor(list, 'b', -1)).toBe('a');
+    expect(stepAnchor(list, 'a', -1)).toBeUndefined();
+  });
+
+  it('moves one step later by anchoring two ahead, or at the end', () => {
+    expect(stepAnchor(list, 'a', 1)).toBe('c');
+    expect(stepAnchor(list, 'b', 1)).toBeNull();
+    expect(stepAnchor(list, 'c', 1)).toBeUndefined();
+  });
+
+  it('cannot move an id that is not in the list', () => {
+    expect(stepAnchor(list, 'zz', 1)).toBeUndefined();
   });
 });

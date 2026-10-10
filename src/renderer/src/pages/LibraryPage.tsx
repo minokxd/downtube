@@ -1,19 +1,25 @@
 import { Play, Search, Shuffle, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { LibraryItem } from '@shared/types';
+import type { LibraryItem, Playlist } from '@shared/types';
+import { ContextMenu } from '../components/ContextMenu';
+import { PlaylistPicker } from '../components/PlaylistPicker';
 import { useLocale, useT, type MessageKey } from '../i18n';
+import { stepAnchor } from '../lib/playlists';
+import { usePlaylistActions } from '../lib/use-playlist-actions';
 import { useLibrary } from '../stores/library';
 import { usePlayer } from '../stores/player';
 import { useUi } from '../stores/ui';
 import { CollectionGrid } from './library/CollectionGrid';
 import { CollectionView } from './library/CollectionView';
 import { DeleteDialog } from './library/DeleteDialog';
-import { ItemMenu } from './library/ItemMenu';
+import { ItemMenu, type ItemMenuPlaylist } from './library/ItemMenu';
 import { collectionItems, filterCollections, filterItems, type LibrarySort, type LibraryTab } from './library/library-logic';
 import { MediaCard } from './library/MediaCard';
 import { MusicList } from './library/MusicList';
 import { PlaylistView } from './library/PlaylistView';
+import { SelectionBar } from './library/SelectionBar';
 import { useItemActions } from './library/use-item-actions';
+import { useSelection, type Modifiers } from './library/use-selection';
 import './library/library.css';
 
 const TABS: ReadonlyArray<{ id: LibraryTab; label: MessageKey }> = [
@@ -45,6 +51,9 @@ export function LibraryPage() {
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [toDelete, setToDelete] = useState<LibraryItem | null>(null);
   const actions = useItemActions();
+  const playlistActions = usePlaylistActions();
+  const startNewPlaylist = useUi((s) => s.startNewPlaylist);
+  const [pickerAt, setPickerAt] = useState<{ x: number; y: number } | null>(null);
 
   const visible = useMemo(() => filterItems(items, tab, query, sort, locale), [items, tab, query, sort, locale]);
   const visibleCollections = useMemo(() => filterCollections(collections, query, locale), [collections, query, locale]);
@@ -59,6 +68,21 @@ export function LibraryPage() {
   const openMenu = useCallback((item: LibraryItem, x: number, y: number) => setMenu({ item, x, y }), []);
   const closeMenu = useCallback(() => setMenu(null), []);
   const closeDelete = useCallback(() => setToDelete(null), []);
+  const order = useMemo(() => context.map((item) => item.id), [context]);
+  const selection = useSelection(order, `${tab}|${query}|${view?.type ?? ''}:${view?.id ?? ''}`);
+  const selectedIds = useMemo(() => order.filter((id) => selection.ids.has(id)), [order, selection.ids]);
+  const selectClick = useCallback((item: LibraryItem, modifiers: Modifiers) => selection.click(item.id, modifiers), [selection]);
+  const closePicker = useCallback(() => setPickerAt(null), []);
+
+  const playlistMenu = (playlist: Playlist, item: LibraryItem): ItemMenuPlaylist => {
+    const earlier = stepAnchor(playlist.itemIds, item.id, -1);
+    const later = stepAnchor(playlist.itemIds, item.id, 1);
+    return {
+      onRemove: () => playlistActions.removeItems(playlist.id, selection.targets(item.id)),
+      onMoveEarlier: earlier === undefined ? undefined : () => playlistActions.moveItems(playlist.id, [item.id], earlier),
+      onMoveLater: later === undefined ? undefined : () => playlistActions.moveItems(playlist.id, [item.id], later),
+    };
+  };
 
   // A deleted playlist, or a YouTube collection that emptied out, closes its page.
   useEffect(() => {
@@ -117,7 +141,13 @@ export function LibraryPage() {
             {t('library.shuffleAll')}
           </button>
         </div>
-        <MusicList items={visible} onPlay={(item) => actions.play(item, visible)} onMenu={openMenu} />
+        <MusicList
+          items={visible}
+          onPlay={(item) => actions.play(item, visible)}
+          onMenu={openMenu}
+          selectedIds={selection.ids}
+          onSelectClick={selectClick}
+        />
       </>
     );
   } else {
@@ -127,6 +157,8 @@ export function LibraryPage() {
           <MediaCard
             key={item.id}
             item={item}
+            selected={selection.ids.has(item.id)}
+            onSelectClick={selectClick}
             onPlay={(target) => actions.play(target, visible)}
             onMenu={openMenu}
             onRedownload={actions.redownload}
@@ -139,10 +171,34 @@ export function LibraryPage() {
 
   return (
     <div className="page library">
+      {selectedIds.length > 0 && (
+        <SelectionBar
+          count={selectedIds.length}
+          onAddTo={(x, y) => setPickerAt({ x, y })}
+          onRemoveFromPlaylist={openPlaylist ? () => playlistActions.removeItems(openPlaylist.id, selectedIds) : undefined}
+          onClear={selection.clear}
+        />
+      )}
       {openPlaylist ? (
-        <PlaylistView playlist={openPlaylist} items={items} onBack={closeLibraryView} onMenu={openMenu} actions={actions} />
+        <PlaylistView
+          playlist={openPlaylist}
+          items={items}
+          onBack={closeLibraryView}
+          onMenu={openMenu}
+          actions={actions}
+          selectedIds={selection.ids}
+          onSelectClick={selectClick}
+        />
       ) : openCollection ? (
-        <CollectionView collection={openCollection} items={items} onBack={closeLibraryView} onMenu={openMenu} actions={actions} />
+        <CollectionView
+          collection={openCollection}
+          items={items}
+          onBack={closeLibraryView}
+          onMenu={openMenu}
+          actions={actions}
+          selectedIds={selection.ids}
+          onSelectClick={selectClick}
+        />
       ) : (
         <>
           <div className="page-header">
@@ -184,6 +240,8 @@ export function LibraryPage() {
           item={menu.item}
           x={menu.x}
           y={menu.y}
+          targetIds={selection.targets(menu.item.id)}
+          playlist={openPlaylist ? playlistMenu(openPlaylist, menu.item) : undefined}
           onClose={closeMenu}
           onPlay={(item) => actions.play(item, context, { sequence: openPlaylist !== undefined || openCollection !== undefined })}
           onEnqueue={actions.enqueue}
@@ -192,6 +250,20 @@ export function LibraryPage() {
         />
       )}
       {toDelete && <DeleteDialog item={toDelete} onClose={closeDelete} />}
+      {pickerAt && (
+        <ContextMenu x={pickerAt.x} y={pickerAt.y} onClose={closePicker}>
+          <PlaylistPicker
+            onPick={(target) => {
+              playlistActions.addItems(target, selectedIds);
+              closePicker();
+            }}
+            onNew={() => {
+              startNewPlaylist(selectedIds);
+              closePicker();
+            }}
+          />
+        </ContextMenu>
+      )}
     </div>
   );
 }

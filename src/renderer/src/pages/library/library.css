@@ -432,3 +432,47 @@
   font-size: 72px;
   line-height: 1;
 }
+
+.card.is-selected .card-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.card-check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.track.is-selected,
+.track.is-selected:not(.track-head):hover {
+  background: var(--accent-soft);
+}
+
+.selection-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.selection-count {
+  margin-right: 6px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}

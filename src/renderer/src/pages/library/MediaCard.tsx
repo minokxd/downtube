@@ -1,10 +1,11 @@
-import { CircleAlert, Ellipsis, Music, Play } from 'lucide-react';
+import { Check, CircleAlert, Ellipsis, Music, Play } from 'lucide-react';
 import type { LibraryItem } from '@shared/types';
 import { LibraryThumb } from '../../components/LibraryThumb';
 import { useT } from '../../i18n';
 import { formatDuration } from '../../lib/format';
 import { menuPoint } from '../../lib/menu-point';
 import { resumeRatio } from './library-logic';
+import type { Modifiers } from './use-selection';
 
 export interface MediaCardProps {
   item: LibraryItem;
@@ -12,14 +13,23 @@ export interface MediaCardProps {
   onMenu: (item: LibraryItem, x: number, y: number) => void;
   onRedownload: (item: LibraryItem) => void;
   onRemoveMissing: (item: LibraryItem) => void;
+  selected?: boolean;
+  /** Ctrl/Shift+click anywhere on the card selects instead of playing; returns true when handled. */
+  onSelectClick?: (item: LibraryItem, modifiers: Modifiers) => boolean;
 }
 
-export function MediaCard({ item, onPlay, onMenu, onRedownload, onRemoveMissing }: MediaCardProps) {
+export function MediaCard({ item, onPlay, onMenu, onRedownload, onRemoveMissing, selected = false, onSelectClick }: MediaCardProps) {
   const t = useT();
   const ratio = resumeRatio(item);
   return (
     <article
-      className={`card${item.missing ? ' is-missing' : ''}`}
+      className={`card${item.missing ? ' is-missing' : ''}${selected ? ' is-selected' : ''}`}
+      onClickCapture={(event) => {
+        if (!(event.ctrlKey || event.metaKey || event.shiftKey) || !onSelectClick?.(item, event)) return;
+        // A selecting click must not also play the video or open the menu.
+        event.preventDefault();
+        event.stopPropagation();
+      }}
       onContextMenu={(event) => {
         event.preventDefault();
         const at = menuPoint(event);
@@ -44,6 +54,11 @@ export function MediaCard({ item, onPlay, onMenu, onRedownload, onRemoveMissing 
         {!item.missing && (
           <span className="card-play" aria-hidden="true">
             <Play size={18} />
+          </span>
+        )}
+        {selected && (
+          <span className="card-check" aria-hidden="true">
+            <Check size={13} />
           </span>
         )}
       </button>

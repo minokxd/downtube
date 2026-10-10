@@ -7,6 +7,7 @@ import { coverUrl } from '../../lib/media-url';
 import { collectionItems } from './library-logic';
 import { MediaCard } from './MediaCard';
 import type { ItemActions } from './use-item-actions';
+import type { Modifiers } from './use-selection';
 
 export function CollectionView({
   collection,
@@ -14,12 +15,16 @@ export function CollectionView({
   onBack,
   onMenu,
   actions,
+  selectedIds,
+  onSelectClick,
 }: {
   collection: Collection;
   items: readonly LibraryItem[];
   onBack: () => void;
   onMenu: (item: LibraryItem, x: number, y: number) => void;
   actions: ItemActions;
+  selectedIds: ReadonlySet<string>;
+  onSelectClick: (item: LibraryItem, modifiers: Modifiers) => boolean;
 }) {
   const t = useT();
   const list = useMemo(() => collectionItems(collection, items), [collection, items]);
@@ -56,6 +61,8 @@ export function CollectionView({
           <MediaCard
             key={item.id}
             item={item}
+            selected={selectedIds.has(item.id)}
+            onSelectClick={onSelectClick}
             onPlay={(target) => actions.play(target, list, { sequence: true })}
             onMenu={onMenu}
             onRedownload={actions.redownload}
