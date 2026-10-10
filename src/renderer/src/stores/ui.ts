@@ -3,6 +3,12 @@ import type { VideoQueue } from '../player/video-queue';
 
 export type Page = 'library' | 'downloads' | 'settings';
 
+/** A page inside the library: one of the user's playlists or a downloaded YouTube collection. */
+export interface LibraryView {
+  type: 'playlist' | 'collection';
+  id: string;
+}
+
 export interface ToastAction {
   label: string;
   run: () => void;
@@ -25,12 +31,19 @@ export interface ToastInput {
 
 interface UiState {
   page: Page;
+  libraryView: LibraryView | null;
+  /** Set while the sidebar shows its "new playlist" row; the new playlist receives these items. */
+  newPlaylist: { itemIds: string[] } | null;
   addUrl: string | null;
   /** The open video player's queue; a single video is a queue of one. */
   video: VideoQueue | null;
   toasts: Toast[];
   skipSetup: boolean;
   setPage: (page: Page) => void;
+  openLibraryView: (view: LibraryView) => void;
+  closeLibraryView: () => void;
+  startNewPlaylist: (itemIds?: string[]) => void;
+  endNewPlaylist: () => void;
   openAdd: (url: string) => void;
   closeAdd: () => void;
   openVideo: (itemId: string) => void;
@@ -46,11 +59,18 @@ let nextToastId = 1;
 
 export const useUi = create<UiState>()((set) => ({
   page: 'library',
+  libraryView: null,
+  newPlaylist: null,
   addUrl: null,
   video: null,
   toasts: [],
   skipSetup: false,
-  setPage: (page) => set({ page }),
+  // Choosing a page from the sidebar always lands on its top level.
+  setPage: (page) => set({ page, libraryView: null }),
+  openLibraryView: (view) => set({ page: 'library', libraryView: view }),
+  closeLibraryView: () => set({ libraryView: null }),
+  startNewPlaylist: (itemIds = []) => set({ newPlaylist: { itemIds } }),
+  endNewPlaylist: () => set({ newPlaylist: null }),
   openAdd: (url) => set({ addUrl: url }),
   closeAdd: () => set({ addUrl: null }),
   openVideo: (itemId) => set({ video: { ids: [itemId], index: 0 } }),
