@@ -239,4 +239,6 @@ export const az: Record<MessageKey, string> = {
   'player.startOver': 'Əvvəldən başla',
   'player.missing': 'Bu fayl tapılmadı.',
   'player.mediaError': 'Bu fayl oynadıla bilmir.',
+  'player.chapters': 'Bölmələr',
+  'player.chapterNumber': 'Bölmə {number}',
 };

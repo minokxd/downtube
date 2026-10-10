@@ -28,7 +28,7 @@ const PROGRESS_TEMPLATE =
   `download:${PROGRESS_PREFIX}%(progress.status)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|` +
   '%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s|%(info.format_id)s';
 const PP_TEMPLATE = `postprocess:${PP_PREFIX}%(progress.postprocessor)s|%(progress.status)s`;
-const DONE_TEMPLATE = `after_move:${DONE_PREFIX}%(.{id,title,channel,channel_id,uploader,artist,track,duration,filepath})j`;
+const DONE_TEMPLATE = `after_move:${DONE_PREFIX}%(.{id,title,channel,channel_id,uploader,artist,track,duration,chapters,filepath})j`;
 
 export function outputDirFor(downloadDir: string, kind: MediaKind): string {
   return join(downloadDir, kind === 'video' ? 'Video' : 'Müzik');
@@ -57,6 +57,8 @@ export function buildDownloadArgs(engine: EnginePaths, input: DownloadArgsInput)
     '--write-thumbnail',
     '--convert-thumbnails',
     'jpg',
+    // Chapter markers go into the file itself, so other players show them too.
+    '--embed-chapters',
     '--windows-filenames',
     '-P',
     input.outputDir,

@@ -240,4 +240,6 @@ export const ru: Record<MessageKey, string> = {
   'player.startOver': 'Сначала',
   'player.missing': 'Этот файл не найден.',
   'player.mediaError': 'Этот файл не удаётся воспроизвести.',
+  'player.chapters': 'Главы',
+  'player.chapterNumber': 'Глава {number}',
 };

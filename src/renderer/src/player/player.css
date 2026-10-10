@@ -149,6 +149,25 @@
   flex: 0 0 96px;
 }
 
+.seek-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Chapter starts show as small gaps in the track, the way YouTube draws them. */
+.seek-mark {
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 4px;
+  margin: -2px 0 0 -1px;
+  background: var(--surface);
+  pointer-events: none;
+}
+
 .queue-panel {
   position: absolute;
   right: 16px;

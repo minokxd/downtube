@@ -239,4 +239,6 @@ export const en: Record<MessageKey, string> = {
   'player.startOver': 'Start over',
   'player.missing': "This file can't be found.",
   'player.mediaError': "This file can't be played.",
+  'player.chapters': 'Chapters',
+  'player.chapterNumber': 'Chapter {number}',
 };

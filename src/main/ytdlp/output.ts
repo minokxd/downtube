@@ -1,3 +1,5 @@
+import { chaptersFromYtdlp } from '@shared/chapters';
+import type { Chapter } from '@shared/types';
 import { DONE_PREFIX, PP_PREFIX, PROGRESS_PREFIX } from './args';
 
 export interface DoneInfo {
@@ -8,6 +10,8 @@ export interface DoneInfo {
   artist?: string;
   track?: string;
   durationSec?: number;
+  /** Only present when the video has chapters. */
+  chapters?: Chapter[];
   filepath: string;
 }
 
@@ -42,7 +46,7 @@ export function toDoneInfo(raw: unknown): DoneInfo | null {
   const id = text(r.id);
   const filepath = text(r.filepath);
   if (!id || !filepath) return null;
-  return {
+  const info: DoneInfo = {
     id,
     title: text(r.title) ?? id,
     channel: text(r.channel) ?? text(r.uploader),
@@ -52,6 +56,9 @@ export function toDoneInfo(raw: unknown): DoneInfo | null {
     durationSec: typeof r.duration === 'number' && Number.isFinite(r.duration) ? r.duration : undefined,
     filepath,
   };
+  const chapters = chaptersFromYtdlp(r.chapters);
+  if (chapters.length > 0) info.chapters = chapters;
+  return info;
 }
 
 export function parseLine(line: string): YtdlpEvent {

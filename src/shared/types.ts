@@ -25,6 +25,13 @@ export interface SubtitleTrack {
   path: string;
 }
 
+/** A section the uploader marked in the video, with times in seconds. */
+export interface Chapter {
+  startSec: number;
+  endSec: number;
+  title: string;
+}
+
 export interface PlaybackProgress {
   positionSec: number;
   updatedAt: string;
@@ -43,6 +50,8 @@ export interface LibraryItem {
   filePath: string;
   thumbPath?: string;
   subtitles: SubtitleTrack[];
+  /** Present only when the video has at least two chapters. */
+  chapters?: Chapter[];
   sizeBytes: number;
   addedAt: string;
   sourceUrl: string;

@@ -14,6 +14,7 @@
 - **Size before you download**, next to your free disk space, with a warning when it will not fit.
 - **Your own playlists**: drag videos and songs onto them in the sidebar, reorder them, give them an emoji and play them back to back.
 - **Offline player** with subtitles, speed control, picture-in-picture and keyboard shortcuts.
+- **Chapters** from YouTube: marked on the seek bar, listed in the player so you can jump to one, and saved inside the file so other players see them too.
 - **Music bar** that keeps playing across pages, with a queue, shuffle, repeat and media keys.
 - **Resume** videos and songs where you left off.
 - **Clipboard detection**: copy a YouTube link and Downtube offers to download it.

@@ -94,6 +94,14 @@ describe('buildDownloadArgs', () => {
     expect(args).not.toContain('-S');
   });
 
+  it('embeds chapters in videos and music and reports them when done', () => {
+    for (const kind of ['video', 'audio'] as const) {
+      const args = buildDownloadArgs(engine, input({ kind }));
+      expect(args).toContain('--embed-chapters');
+      expect(valueAfter(args, '--print')).toContain('chapters');
+    }
+  });
+
   it('prints machine readable progress and the final file', () => {
     const args = buildDownloadArgs(engine, input());
     expect(args).toContain('--newline');

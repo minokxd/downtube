@@ -33,6 +33,18 @@ test('setup, library, video, music and settings work together', async () => {
   const video = page.locator('video');
   await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(0.5);
   await page.screenshot({ path: 'test-results/03-video.png' });
+
+  // Chapters: marks on the seek bar, the current name next to the time, and a menu that jumps.
+  await video.evaluate((el: HTMLVideoElement) => el.pause());
+  await expect(page.locator('.video-seek .seek-mark')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Bölümler' }).click();
+  await page.getByRole('menuitemradio', { name: /Middle part/ }).click();
+  await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeCloseTo(2, 1);
+  await expect(page.locator('.video-chapter')).toHaveText('Middle part');
+  await page.getByRole('button', { name: 'Bölümler' }).click();
+  await page.screenshot({ path: 'test-results/03b-chapters.png' });
+  await page.getByRole('menuitemradio', { name: /3\. bölüm/ }).click();
+  await expect(page.locator('.video-chapter')).toHaveText('3. bölüm');
   await page.keyboard.press('Escape');
   await expect(video).toHaveCount(0);
 

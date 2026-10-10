@@ -239,4 +239,6 @@ export const ptBR: Record<MessageKey, string> = {
   'player.startOver': 'Começar do início',
   'player.missing': 'Este arquivo não foi encontrado.',
   'player.mediaError': 'Este arquivo não pode ser reproduzido.',
+  'player.chapters': 'Capítulos',
+  'player.chapterNumber': 'Capítulo {number}',
 };

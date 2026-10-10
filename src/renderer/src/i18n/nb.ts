@@ -239,4 +239,6 @@ export const nb: Record<MessageKey, string> = {
   'player.startOver': 'Start på nytt',
   'player.missing': 'Fant ikke denne filen.',
   'player.mediaError': 'Denne filen kan ikke spilles av.',
+  'player.chapters': 'Kapitler',
+  'player.chapterNumber': 'Kapittel {number}',
 };

@@ -239,4 +239,6 @@ export const fr: Record<MessageKey, string> = {
   'player.startOver': 'Recommencer',
   'player.missing': 'Ce fichier est introuvable.',
   'player.mediaError': 'Ce fichier ne peut pas être lu.',
+  'player.chapters': 'Chapitres',
+  'player.chapterNumber': 'Chapitre {number}',
 };

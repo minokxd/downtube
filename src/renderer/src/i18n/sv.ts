@@ -239,4 +239,6 @@ export const sv: Record<MessageKey, string> = {
   'player.startOver': 'Börja om',
   'player.missing': 'Filen hittades inte.',
   'player.mediaError': 'Filen kan inte spelas upp.',
+  'player.chapters': 'Kapitel',
+  'player.chapterNumber': 'Kapitel {number}',
 };

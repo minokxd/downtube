@@ -343,3 +343,33 @@ describe('playlists', () => {
     await expect(store.deletePlaylist('missing')).rejects.toThrow('playlist not found');
   });
 });
+
+describe('chapters', () => {
+  const chapters = [
+    { startSec: 0, endSec: 15, title: 'Intro' },
+    { startSec: 15, endSec: 60, title: 'Knot' },
+  ];
+
+  it('keeps the chapters of a download and refreshes them on a new download', async () => {
+    const store = await LibraryStore.open(file);
+    const first = await store.addFromDownload(input({ done: { ...input().done, chapters } }));
+    expect(first.chapters).toEqual(chapters);
+    expect((await LibraryStore.open(file)).get(first.id)?.chapters).toEqual(chapters);
+    const again = await store.addFromDownload(input());
+    expect(again).not.toHaveProperty('chapters');
+  });
+
+  it('drops malformed chapters when reading the file', () => {
+    const data = sanitizeLibrary({
+      items: [
+        { ...validItem(), id: 'a', chapters: [{ startSec: 0, endSec: 5, title: 'A' }, { startSec: 'x' }, { startSec: 5, endSec: 9, title: 'B' }] },
+        { ...validItem(), id: 'b', chapters: 'nope' },
+      ],
+    });
+    expect(data.items[0]?.chapters).toEqual([
+      { startSec: 0, endSec: 5, title: 'A' },
+      { startSec: 5, endSec: 9, title: 'B' },
+    ]);
+    expect(data.items[1]).not.toHaveProperty('chapters');
+  });
+});

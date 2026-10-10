@@ -50,6 +50,22 @@ describe('parseLine', () => {
     });
   });
 
+  it('carries the chapters of the done line, cleaned', () => {
+    const line =
+      'DT_DONE {"id": "thGMPoX29Vs", "title": "Tie", "duration": 142, "filepath": "C:\\\\v.mp4", "chapters": [' +
+      '{"start_time": 15, "title": "Knot", "end_time": 60}, {"start_time": 0, "title": "Intro", "end_time": 15}]}';
+    const event = parseLine(line);
+    expect(event.type === 'done' && event.info.chapters).toEqual([
+      { startSec: 0, endSec: 15, title: 'Intro' },
+      { startSec: 15, endSec: 60, title: 'Knot' },
+    ]);
+  });
+
+  it('leaves chapters out when the video has none', () => {
+    const event = parseLine('DT_DONE {"id": "abcdefghijk", "filepath": "C:\\\\v.mp4", "chapters": null}');
+    expect(event.type === 'done' && 'chapters' in event.info).toBe(false);
+  });
+
   it('falls back to a log line for broken or unrelated output', () => {
     expect(parseLine('DT_DONE {broken')).toEqual({ type: 'log', line: 'DT_DONE {broken' });
     expect(parseLine('DT_DONE {"title": "no id"}')).toEqual({ type: 'log', line: 'DT_DONE {"title": "no id"}' });

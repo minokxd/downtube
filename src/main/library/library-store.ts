@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
+import { cleanChapters } from '@shared/chapters';
 import { isPlaylistEmoji } from '@shared/playlist-emojis';
 import { addIds, cleanPlaylistTitle, moveIds, removeIds } from '@shared/playlist-ops';
 import type {
@@ -67,6 +68,13 @@ function isCollection(value: unknown): value is Collection {
   );
 }
 
+function withCleanChapters(item: LibraryItem): LibraryItem {
+  if (item.chapters === undefined) return item;
+  const { chapters, ...rest } = item;
+  const clean = cleanChapters(chapters);
+  return clean.length > 0 ? { ...rest, chapters: clean } : rest;
+}
+
 function sanitizePlaylist(value: unknown, itemIds: ReadonlySet<string>): Playlist | null {
   if (typeof value !== 'object' || value === null) return null;
   const p = value as Partial<Playlist>;
@@ -98,7 +106,7 @@ const errorMessage = (err: unknown): string => (err instanceof Error ? err.messa
 export function sanitizeLibrary(raw: unknown): LibraryData {
   if (typeof raw !== 'object' || raw === null) return emptyData();
   const r = raw as { items?: unknown; collections?: unknown; playlists?: unknown };
-  const items = Array.isArray(r.items) ? r.items.filter(isLibraryItem) : [];
+  const items = Array.isArray(r.items) ? r.items.filter(isLibraryItem).map(withCleanChapters) : [];
   const ids = new Set(items.map((item) => item.id));
   const collections = Array.isArray(r.collections)
     ? r.collections.filter(isCollection).map((c) => ({ ...c, itemIds: c.itemIds.filter((id) => ids.has(id)) }))
@@ -168,6 +176,8 @@ export class LibraryStore {
       progress: existing?.progress ?? { positionSec: 0, updatedAt: now, completed: false },
       playCount: existing?.playCount ?? 0,
     };
+    // A new download replaces the chapters too, so a video whose chapters were removed loses them.
+    if (input.done.chapters && input.done.chapters.length > 0) item.chapters = input.done.chapters;
     if (existing) this.data.items[this.data.items.indexOf(existing)] = item;
     else this.data.items.push(item);
     if (input.collection) this.attachToCollection(item, input.collection, now);

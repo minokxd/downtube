@@ -240,4 +240,6 @@ export const ga: Record<MessageKey, string> = {
   'player.startOver': 'Tosaigh arís',
   'player.missing': 'Ní féidir an comhad seo a aimsiú.',
   'player.mediaError': 'Ní féidir an comhad seo a sheinm.',
+  'player.chapters': 'Caibidlí',
+  'player.chapterNumber': 'Caibidil {number}',
 };

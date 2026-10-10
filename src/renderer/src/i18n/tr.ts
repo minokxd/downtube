@@ -237,6 +237,8 @@ export const tr = {
   'player.startOver': 'Baştan başla',
   'player.missing': 'Bu dosya bulunamadı.',
   'player.mediaError': 'Bu dosya oynatılamadı.',
+  'player.chapters': 'Bölümler',
+  'player.chapterNumber': '{number}. bölüm',
 } satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof tr;

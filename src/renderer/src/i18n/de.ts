@@ -239,4 +239,6 @@ export const de: Record<MessageKey, string> = {
   'player.startOver': 'Von vorne',
   'player.missing': 'Diese Datei wurde nicht gefunden.',
   'player.mediaError': 'Diese Datei kann nicht abgespielt werden.',
+  'player.chapters': 'Kapitel',
+  'player.chapterNumber': 'Kapitel {number}',
 };

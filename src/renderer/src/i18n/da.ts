@@ -239,4 +239,6 @@ export const da: Record<MessageKey, string> = {
   'player.startOver': 'Start forfra',
   'player.missing': 'Filen blev ikke fundet.',
   'player.mediaError': 'Filen kan ikke afspilles.',
+  'player.chapters': 'Kapitler',
+  'player.chapterNumber': 'Kapitel {number}',
 };

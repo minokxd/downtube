@@ -2,6 +2,7 @@ import {
   Captions,
   ChevronLeft,
   Gauge,
+  ListOrdered,
   Maximize,
   Minimize,
   Pause,
@@ -31,6 +32,7 @@ import { mediaUrl, subtitleUrl } from '../lib/media-url';
 import { useLibrary } from '../stores/library';
 import { usePlayer } from '../stores/player';
 import { useUi } from '../stores/ui';
+import { chapterIndexAt, chapterMarks, chapterTitle } from './chapters';
 import { createProgressSaver } from './progress-saver';
 import { resumeStart } from './resume';
 import { stepIndex } from './video-queue';
@@ -88,6 +90,7 @@ function VideoPlayerView({
   const setVideoIndex = useUi((s) => s.setVideoIndex);
   const items = useLibrary((s) => s.items);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const chaptersMenuRef = useRef<HTMLDivElement>(null);
   const idleTimer = useRef<number | undefined>(undefined);
   const saver = useMemo(
     () => createProgressSaver((id, position, duration) => void window.downtube.library.saveProgress(id, position, duration)),
@@ -111,7 +114,7 @@ function VideoPlayerView({
   );
   const setSpeed = useCallback((value: number) => setSession((s) => ({ ...s, speed: value })), [setSession]);
   const [subtitle, setSubtitle] = useState<string | null>(null);
-  const [menu, setMenu] = useState<'speed' | 'subtitles' | null>(null);
+  const [menu, setMenu] = useState<'speed' | 'subtitles' | 'chapters' | null>(null);
   const [idle, setIdle] = useState(false);
   const [fullscreen, setFullscreen] = useState(() => document.fullscreenElement !== null);
   const [resumedFrom, setResumedFrom] = useState<number | null>(null);
@@ -123,6 +126,13 @@ function VideoPlayerView({
   const nextIndex = queue ? stepIndex(queue, 1, lookup) : null;
   const prevIndex = queue ? stepIndex(queue, -1, lookup) : null;
   const inQueue = (queue?.ids.length ?? 0) > 1;
+  const chapters = useMemo(() => item?.chapters ?? [], [item]);
+  const chapterIndex = chapterIndexAt(chapters, time);
+  const marks = useMemo(() => chapterMarks(chapters, duration), [chapters, duration]);
+  const chapterName = (index: number): string => {
+    const chapter = chapters[index];
+    return chapter ? chapterTitle(chapter, index, (number) => t('player.chapterNumber', { number })) : '';
+  };
   const subtitles = item?.subtitles ?? [];
   const firstSubtitle = subtitles[0]?.lang ?? null;
   const unavailable = !item || Boolean(item.missing) || failed;
@@ -163,6 +173,11 @@ function VideoPlayerView({
 
   useEffect(() => () => window.clearTimeout(idleTimer.current), []);
 
+  // A long chapter list opens scrolled to the chapter that is playing.
+  useEffect(() => {
+    if (menu === 'chapters') chaptersMenuRef.current?.querySelector('[aria-checked="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [menu]);
+
   const poke = useCallback(() => {
     setIdle(false);
     window.clearTimeout(idleTimer.current);
@@ -189,6 +204,13 @@ function VideoPlayerView({
     if (!video) return;
     const end = Number.isFinite(video.duration) ? video.duration : Number.POSITIVE_INFINITY;
     video.currentTime = Math.max(0, Math.min(end, video.currentTime + delta));
+  }, []);
+
+  const seekTo = useCallback((seconds: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = seconds;
+    setTime(seconds);
   }, []);
 
   const changeVolume = useCallback((delta: number) => {
@@ -382,6 +404,9 @@ function VideoPlayerView({
         <div className="video-controls">
           <div className="video-seek">
             <div className="video-buffer" style={{ width: `${bufferedPercent}%` }} />
+            {marks.map((percent, index) => (
+              <span key={index} className="seek-mark" style={{ left: `${percent}%` }} aria-hidden="true" />
+            ))}
             <input
               type="range"
               className="range"
@@ -445,7 +470,45 @@ function VideoPlayerView({
             <span className="video-time">
               {formatDuration(time)} / {formatDuration(duration)}
             </span>
+            {chapterIndex >= 0 && (
+              <span className="video-chapter" title={chapterName(chapterIndex)}>
+                {chapterName(chapterIndex)}
+              </span>
+            )}
             <span className="spacer" />
+            {chapters.length > 0 && (
+              <div className="menu-anchor">
+                <button
+                  type="button"
+                  className={`icon-btn on-video${menu === 'chapters' ? ' is-on' : ''}`}
+                  aria-label={t('player.chapters')}
+                  title={t('player.chapters')}
+                  aria-expanded={menu === 'chapters'}
+                  onClick={() => setMenu((current) => (current === 'chapters' ? null : 'chapters'))}
+                >
+                  <ListOrdered size={18} aria-hidden="true" />
+                </button>
+                {menu === 'chapters' && (
+                  <div ref={chaptersMenuRef} className="video-menu video-chapters" role="menu" aria-label={t('player.chapters')}>
+                    {chapters.map((chapter, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={index === chapterIndex}
+                        onClick={() => {
+                          seekTo(chapter.startSec);
+                          setMenu(null);
+                        }}
+                      >
+                        <span className="video-chapter-time">{formatDuration(chapter.startSec)}</span>
+                        <span className="video-chapter-name">{chapterName(index)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="menu-anchor">
               <button
                 type="button"

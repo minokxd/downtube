@@ -5,6 +5,7 @@ import { useT, type MessageKey } from '../i18n';
 import { formatDuration } from '../lib/format';
 import { useLibrary } from '../stores/library';
 import { usePlayer } from '../stores/player';
+import { chapterIndexAt, chapterMarks, chapterTitle } from './chapters';
 import type { RepeatMode } from './queue-logic';
 import { QueuePanel } from './QueuePanel';
 import './player.css';
@@ -39,6 +40,15 @@ export function MusicBar() {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const shownVolume = muted ? 0 : volume;
   const RepeatIcon = repeat === 'one' ? Repeat1 : Repeat;
+  const chapters = item?.chapters ?? [];
+  const chapterIndex = chapterIndexAt(chapters, currentTime);
+  const chapter = chapters[chapterIndex];
+  // While a track has chapters, the line under the title follows the chapter that is playing.
+  const secondLine = chapter
+    ? chapterTitle(chapter, chapterIndex, (number) => t('player.chapterNumber', { number }))
+    : item
+      ? (item.artist ?? item.channel)
+      : '';
 
   return (
     <footer className="musicbar">
@@ -48,7 +58,9 @@ export function MusicBar() {
           <div className="musicbar-title" title={item?.title}>
             {item?.title ?? '-'}
           </div>
-          <div className="musicbar-artist">{item ? (item.artist ?? item.channel) : ''}</div>
+          <div className="musicbar-artist" title={secondLine}>
+            {secondLine}
+          </div>
         </div>
       </div>
 
@@ -85,17 +97,22 @@ export function MusicBar() {
         </div>
         <div className="musicbar-seek">
           <span className="time">{formatDuration(currentTime)}</span>
-          <input
-            type="range"
-            className="range"
-            min={0}
-            max={duration || 0}
-            step={0.1}
-            value={Math.min(currentTime, duration || 0)}
-            style={fill(progress)}
-            onChange={(event) => player.seek(Number(event.target.value))}
-            aria-label={t('player.seek')}
-          />
+          <div className="seek-wrap">
+            <input
+              type="range"
+              className="range"
+              min={0}
+              max={duration || 0}
+              step={0.1}
+              value={Math.min(currentTime, duration || 0)}
+              style={fill(progress)}
+              onChange={(event) => player.seek(Number(event.target.value))}
+              aria-label={t('player.seek')}
+            />
+            {chapterMarks(chapters, duration).map((percent, index) => (
+              <span key={index} className="seek-mark" style={{ left: `${percent}%` }} aria-hidden="true" />
+            ))}
+          </div>
           <span className="time">{formatDuration(duration)}</span>
         </div>
       </div>

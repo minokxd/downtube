@@ -239,4 +239,6 @@ export const es: Record<MessageKey, string> = {
   'player.startOver': 'Empezar de nuevo',
   'player.missing': 'No se encuentra este archivo.',
   'player.mediaError': 'No se puede reproducir este archivo.',
+  'player.chapters': 'Capítulos',
+  'player.chapterNumber': 'Capítulo {number}',
 };

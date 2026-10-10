@@ -102,6 +102,10 @@
   background: #fff;
 }
 
+.video-seek .seek-mark {
+  background: rgba(0, 0, 0, 0.85);
+}
+
 .video-buttons {
   display: flex;
   align-items: center;
@@ -114,6 +118,21 @@
   color: rgba(255, 255, 255, 0.8);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+
+.video-chapter {
+  min-width: 0;
+  max-width: 40ch;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.video-chapter::before {
+  content: '\00b7';
+  margin-right: 6px;
 }
 
 .spacer {
@@ -172,6 +191,33 @@
 
 .video-menu button[aria-checked='true'] {
   color: var(--accent);
+}
+
+.video-chapters {
+  width: 320px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+}
+
+.video-chapters button {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.video-chapter-time {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.video-chapters button[aria-checked='true'] .video-chapter-time {
+  color: inherit;
+}
+
+.video-chapter-name {
+  overflow-wrap: anywhere;
 }
 
 .video-resume {

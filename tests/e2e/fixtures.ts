@@ -13,7 +13,7 @@ export interface Fixture {
   userData: string;
 }
 
-/** Creates a separate profile with one video and one song, generated locally by ffmpeg. */
+/** Creates a separate profile with two videos (the first with chapters) and one song, generated locally by ffmpeg. */
 export async function createFixture(): Promise<Fixture> {
   const root = await mkdtemp(join(tmpdir(), 'downtube-e2e-'));
   const userData = join(root, 'userData');
@@ -43,6 +43,12 @@ export async function createFixture(): Promise<Fixture> {
   await copyFile(videoThumb, secondThumb);
 
   const now = new Date().toISOString();
+  // The third title is the placeholder YouTube gives chapters that have no name.
+  const chapters = [
+    { startSec: 0, endSec: 2, title: 'Intro' },
+    { startSec: 2, endSec: 4, title: 'Middle part' },
+    { startSec: 4, endSec: 6, title: '<Untitled Chapter 3>' },
+  ];
   const base = {
     subtitles: [],
     sizeBytes: 1,
@@ -54,7 +60,7 @@ export async function createFixture(): Promise<Fixture> {
   const library = {
     version: 1,
     items: [
-      { ...base, id: 'e2e-video', videoId: 'e2eVideo001', kind: 'video', title: 'Sample video', channel: 'Downtube', durationSec: 6, filePath: video, thumbPath: videoThumb, sourceUrl: 'https://www.youtube.com/watch?v=e2eVideo001' },
+      { ...base, id: 'e2e-video', videoId: 'e2eVideo001', kind: 'video', title: 'Sample video', channel: 'Downtube', durationSec: 6, filePath: video, thumbPath: videoThumb, sourceUrl: 'https://www.youtube.com/watch?v=e2eVideo001', chapters },
       { ...base, id: 'e2e-audio', videoId: 'e2eAudio001', kind: 'audio', title: 'Sample song', channel: 'Downtube', artist: 'Downtube', durationSec: 6, filePath: song, thumbPath: songThumb, sourceUrl: 'https://www.youtube.com/watch?v=e2eAudio001' },
       { ...base, id: 'e2e-video-2', videoId: 'e2eVideo002', kind: 'video', title: 'Second video', channel: 'Downtube', durationSec: 4, filePath: second, thumbPath: secondThumb, sourceUrl: 'https://www.youtube.com/watch?v=e2eVideo002' },
     ],
