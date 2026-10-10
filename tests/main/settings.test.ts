@@ -26,12 +26,19 @@ describe('settings helpers', () => {
     expect(defaults.downloadDir).toBe(join(tmpdir(), 'Videos', 'Downtube'));
   });
 
-  it('starts in Turkish only on a Turkish system and in English everywhere else', () => {
+  it('starts in the system language when it is supported and in English otherwise', () => {
     expect(defaultSettings('V', 'tr-TR').language).toBe('tr');
     expect(defaultSettings('V', 'tr').subtitles.langs).toEqual(['tr', 'en']);
     expect(defaultSettings('V', 'en-US').language).toBe('en');
-    expect(defaultSettings('V', 'de-DE').language).toBe('en');
-    expect(defaultSettings('V', 'de-DE').subtitles.langs).toEqual(['en']);
+    expect(defaultSettings('V', 'de-DE').language).toBe('de');
+    expect(defaultSettings('V', 'de-DE').subtitles.langs).toEqual(['de', 'en']);
+    expect(defaultSettings('V', 'ja-JP').language).toBe('en');
+    expect(defaultSettings('V', 'ja-JP').subtitles.langs).toEqual(['en']);
+  });
+
+  it('accepts every supported interface language and nothing else', () => {
+    expect(sanitizeSettings({ language: 'pt-BR' }, defaults).language).toBe('pt-BR');
+    expect(sanitizeSettings({ language: 'ja' }, defaults).language).toBe('tr');
   });
 
   it('sanitize keeps valid fields and drops invalid or unknown ones', () => {

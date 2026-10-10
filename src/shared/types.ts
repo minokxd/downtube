@@ -1,9 +1,11 @@
+import type { Language } from './languages';
+
 export type MediaKind = 'video' | 'audio';
 export type Quality = 'best' | '1080' | '720' | '480';
 export const QUALITIES: readonly Quality[] = ['best', '1080', '720', '480'];
 
 export type ThemeSetting = 'system' | 'dark' | 'light';
-export type Language = 'tr' | 'en';
+export type { Language };
 
 export type ErrorCode =
   | 'INVALID_URL'

@@ -17,7 +17,8 @@
 - **Music bar** that keeps playing across pages, with a queue, shuffle, repeat and media keys.
 - **Resume** videos and songs where you left off.
 - **Clipboard detection**: copy a YouTube link and Downtube offers to download it.
-- Dark and light themes, English and Turkish interface.
+- Dark and light themes.
+- **12 languages**: English, Turkish, German, Spanish, French, Portuguese (Brazil), Russian, Swedish, Norwegian, Danish, Irish and Azerbaijani. Downtube starts in your Windows language when it is one of these.
 
 ## Install
 
@@ -50,6 +51,10 @@ npm run test:live      # real YouTube downloads (needs network)
 npm run test:e2e       # Electron end-to-end tests
 npm run dist           # Windows installer
 ```
+
+## Translations
+
+The translations other than English and Turkish were written with AI help. If you spot a mistake, please open an issue or a pull request. The texts live in `src/renderer/src/i18n/`.
 
 ## Legal
 

@@ -1,7 +1,7 @@
 {
   "name": "downtube",
   "productName": "Downtube",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Download YouTube videos, music, playlists and channels and watch them offline.",
   "main": "./out/main/index.js",
   "author": "minok",

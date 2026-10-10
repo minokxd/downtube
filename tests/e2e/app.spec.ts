@@ -52,6 +52,6 @@ test('setup, library, video, music and settings work together', async () => {
   await page.screenshot({ path: 'test-results/06-library-light.png' });
 
   await page.getByRole('button', { name: 'Ayarlar' }).click();
-  await page.getByRole('radio', { name: 'English' }).click();
+  await page.getByRole('combobox', { name: 'Dil' }).selectOption('en');
   await expect(page.getByRole('button', { name: 'Library' })).toBeVisible();
 });

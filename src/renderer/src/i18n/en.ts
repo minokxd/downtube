@@ -164,8 +164,6 @@ export const en: Record<MessageKey, string> = {
   'settings.theme.dark': 'Dark',
   'settings.theme.light': 'Light',
   'settings.language': 'Language',
-  'settings.language.tr': 'Türkçe',
-  'settings.language.en': 'English',
   'settings.downloads': 'Downloads',
   'settings.folder': 'Download folder',
   'settings.change': 'Change',

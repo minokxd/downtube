@@ -1,17 +1,18 @@
 import { isAbsolute, join } from 'node:path';
+import { isLanguage, languageFromLocale, subtitleLangsFor } from '@shared/languages';
 import { QUALITIES, type Quality, type Settings } from '@shared/types';
 import { JsonFile, type RecoveryState } from './json-store';
 
-/** `locale` is the system's (app.getLocale()); a first start follows it, Turkish or else English. */
+/** `locale` is the system's (app.getLocale()); a first start follows it when the language is supported, else English. */
 export function defaultSettings(videosDir: string, locale = 'tr'): Settings {
-  const turkish = locale.toLowerCase().startsWith('tr');
+  const language = languageFromLocale(locale);
   return {
     theme: 'system',
-    language: turkish ? 'tr' : 'en',
+    language,
     downloadDir: join(videosDir, 'Downtube'),
     defaultQuality: '1080',
     concurrency: 2,
-    subtitles: { enabled: true, langs: turkish ? ['tr', 'en'] : ['en'], includeAuto: false },
+    subtitles: { enabled: true, langs: subtitleLangsFor(language), includeAuto: false },
     clipboardWatch: true,
   };
 }
@@ -22,7 +23,7 @@ type Validator = (value: unknown) => boolean;
 
 const VALIDATORS: { [K in keyof Settings]-?: Validator } = {
   theme: (v) => v === 'system' || v === 'dark' || v === 'light',
-  language: (v) => v === 'tr' || v === 'en',
+  language: isLanguage,
   downloadDir: (v) => typeof v === 'string' && v.length > 0 && v.length < 1024 && isAbsolute(v),
   defaultQuality: (v) => QUALITIES.includes(v as Quality),
   concurrency: (v) => typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= 4,

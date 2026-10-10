@@ -162,8 +162,6 @@ export const tr = {
   'settings.theme.dark': 'Koyu',
   'settings.theme.light': 'Açık',
   'settings.language': 'Dil',
-  'settings.language.tr': 'Türkçe',
-  'settings.language.en': 'English',
   'settings.downloads': 'İndirmeler',
   'settings.folder': 'İndirme klasörü',
   'settings.change': 'Değiştir',

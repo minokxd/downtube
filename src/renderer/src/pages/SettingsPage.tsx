@@ -1,7 +1,8 @@
 import { Check, CircleAlert, FolderOpen, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { SettingsPatch } from '@shared/ipc-contract';
-import { QUALITIES, type EngineComponentId } from '@shared/types';
+import { LANGUAGES } from '@shared/languages';
+import { QUALITIES, type EngineComponentId, type Language } from '@shared/types';
 import { Segmented, Switch } from '../components/controls';
 import { useLocale, useT } from '../i18n';
 import { QUALITY_LABEL } from '../i18n/labels';
@@ -118,15 +119,19 @@ export function SettingsPage() {
             />
           </Row>
           <Row label={t('settings.language')}>
-            <Segmented
-              label={t('settings.language')}
+            {/* Each language is listed under its own name, so anyone can find theirs. */}
+            <select
+              className="select"
               value={settings.language}
-              onChange={(language) => save({ language })}
-              options={[
-                { value: 'tr', label: t('settings.language.tr') },
-                { value: 'en', label: t('settings.language.en') },
-              ]}
-            />
+              onChange={(event) => save({ language: event.target.value as Language })}
+              aria-label={t('settings.language')}
+            >
+              {LANGUAGES.map((language) => (
+                <option key={language.code} value={language.code}>
+                  {language.name}
+                </option>
+              ))}
+            </select>
           </Row>
         </div>
       </section>
