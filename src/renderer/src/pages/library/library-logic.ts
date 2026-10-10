@@ -1,4 +1,4 @@
-import type { Collection, LibraryItem, MediaKind } from '@shared/types';
+import type { LibraryItem, MediaKind } from '@shared/types';
 
 export type LibraryTab = 'all' | 'video' | 'music' | 'collections';
 export type LibrarySort = 'newest' | 'title';
@@ -31,16 +31,16 @@ export function filterItems(
   );
 }
 
-export function filterCollections(collections: readonly Collection[], query: string, locale: string): Collection[] {
+export function filterCollections<T extends { title: string }>(collections: readonly T[], query: string, locale: string): T[] {
   const q = normalizeSearch(query.trim());
   return collections
     .filter((collection) => q === '' || normalizeSearch(collection.title).includes(q))
     .sort((a, b) => a.title.localeCompare(b.title, locale, { sensitivity: 'base' }));
 }
 
-export function collectionItems(collection: Collection, items: readonly LibraryItem[]): LibraryItem[] {
+export function collectionItems(group: { itemIds: readonly string[] }, items: readonly LibraryItem[]): LibraryItem[] {
   const byId = new Map(items.map((item) => [item.id, item]));
-  return collection.itemIds.map((id) => byId.get(id)).filter((item): item is LibraryItem => item !== undefined);
+  return group.itemIds.map((id) => byId.get(id)).filter((item): item is LibraryItem => item !== undefined);
 }
 
 export function resumeRatio(item: LibraryItem): number {

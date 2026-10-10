@@ -399,3 +399,36 @@
 .collection-info .muted {
   margin: 0 0 14px;
 }
+
+.library-section + .library-section {
+  margin-top: 36px;
+}
+
+.library-section-title {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.card-emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 56px;
+  line-height: 1;
+}
+
+.collection-cover.is-emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 72px;
+  line-height: 1;
+}

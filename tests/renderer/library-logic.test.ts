@@ -84,3 +84,18 @@ describe('playableIds', () => {
     expect(playableIds(list, 'audio')).toEqual(['b']);
   });
 });
+
+describe('playlists in the shared helpers', () => {
+  const playlist = (id: string, title: string, itemIds: string[] = []) => ({ id, title, itemIds, createdAt: '' });
+
+  it('filters and sorts playlists by title like collections', () => {
+    const list = [playlist('1', 'Yemek'), playlist('2', 'kedi videoları'), playlist('3', 'Komik')];
+    expect(filterCollections(list, 'k', 'tr-TR').map((p) => p.id)).toEqual(['2', '3', '1']);
+    expect(filterCollections(list, 'kedi', 'tr-TR').map((p) => p.id)).toEqual(['2']);
+  });
+
+  it('lists a playlist in its own order and skips ids that are gone', () => {
+    const items = [item('a'), item('b')];
+    expect(collectionItems(playlist('p', 'x', ['b', 'gone', 'a']), items).map((i) => i.id)).toEqual(['b', 'a']);
+  });
+});

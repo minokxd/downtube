@@ -1,9 +1,10 @@
 import { Play, Search, Shuffle, Sparkles } from 'lucide-react';
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { LibraryItem } from '@shared/types';
 import { useLocale, useT, type MessageKey } from '../i18n';
 import { useLibrary } from '../stores/library';
 import { usePlayer } from '../stores/player';
+import { useUi } from '../stores/ui';
 import { CollectionGrid } from './library/CollectionGrid';
 import { CollectionView } from './library/CollectionView';
 import { DeleteDialog } from './library/DeleteDialog';
@@ -11,6 +12,7 @@ import { ItemMenu } from './library/ItemMenu';
 import { collectionItems, filterCollections, filterItems, type LibrarySort, type LibraryTab } from './library/library-logic';
 import { MediaCard } from './library/MediaCard';
 import { MusicList } from './library/MusicList';
+import { PlaylistView } from './library/PlaylistView';
 import { useItemActions } from './library/use-item-actions';
 import './library/library.css';
 
@@ -32,28 +34,38 @@ export function LibraryPage() {
   const locale = useLocale();
   const items = useLibrary((s) => s.items);
   const collections = useLibrary((s) => s.collections);
+  const playlists = useLibrary((s) => s.playlists);
   const loaded = useLibrary((s) => s.loaded);
+  const view = useUi((s) => s.libraryView);
+  const openLibraryView = useUi((s) => s.openLibraryView);
+  const closeLibraryView = useUi((s) => s.closeLibraryView);
   const [tab, setTab] = useState<LibraryTab>('all');
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<LibrarySort>('newest');
-  const [openCollectionId, setOpenCollectionId] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [toDelete, setToDelete] = useState<LibraryItem | null>(null);
   const actions = useItemActions();
 
   const visible = useMemo(() => filterItems(items, tab, query, sort, locale), [items, tab, query, sort, locale]);
   const visibleCollections = useMemo(() => filterCollections(collections, query, locale), [collections, query, locale]);
-  const openCollection = openCollectionId ? collections.find((c) => c.id === openCollectionId) : undefined;
-  const context = useMemo(
-    () => (openCollection ? collectionItems(openCollection, items) : visible),
-    [openCollection, items, visible],
-  );
+  const visiblePlaylists = useMemo(() => filterCollections(playlists, query, locale), [playlists, query, locale]);
+  const openCollection = view?.type === 'collection' ? collections.find((c) => c.id === view.id) : undefined;
+  const openPlaylist = view?.type === 'playlist' ? playlists.find((p) => p.id === view.id) : undefined;
+  const context = useMemo(() => {
+    const group = openPlaylist ?? openCollection;
+    return group ? collectionItems(group, items) : visible;
+  }, [openPlaylist, openCollection, items, visible]);
   const musicIds = useMemo(() => visible.filter((i) => i.kind === 'audio' && !i.missing).map((i) => i.id), [visible]);
   const openMenu = useCallback((item: LibraryItem, x: number, y: number) => setMenu({ item, x, y }), []);
   const closeMenu = useCallback(() => setMenu(null), []);
   const closeDelete = useCallback(() => setToDelete(null), []);
 
-  if (loaded && items.length === 0) {
+  // A deleted playlist, or a YouTube collection that emptied out, closes its page.
+  useEffect(() => {
+    if (loaded && view && !openCollection && !openPlaylist) closeLibraryView();
+  }, [loaded, view, openCollection, openPlaylist, closeLibraryView]);
+
+  if (loaded && items.length === 0 && !openPlaylist) {
     return (
       <div className="page">
         <div className="empty">
@@ -72,10 +84,18 @@ export function LibraryPage() {
   let content: ReactNode;
   if (tab === 'collections') {
     content =
-      visibleCollections.length === 0 ? (
-        <p className="library-noresults">{collections.length === 0 ? t('library.noCollections') : t('library.noResults')}</p>
+      visibleCollections.length === 0 && visiblePlaylists.length === 0 ? (
+        <p className="library-noresults">
+          {collections.length === 0 && playlists.length === 0 ? t('library.noCollections') : t('library.noResults')}
+        </p>
       ) : (
-        <CollectionGrid collections={visibleCollections} onOpen={setOpenCollectionId} />
+        <CollectionGrid
+          playlists={visiblePlaylists}
+          collections={visibleCollections}
+          items={items}
+          onOpenPlaylist={(id) => openLibraryView({ type: 'playlist', id })}
+          onOpenCollection={(id) => openLibraryView({ type: 'collection', id })}
+        />
       );
   } else if (visible.length === 0) {
     content = <p className="library-noresults">{t('library.noResults')}</p>;
@@ -119,8 +139,10 @@ export function LibraryPage() {
 
   return (
     <div className="page library">
-      {openCollection ? (
-        <CollectionView collection={openCollection} items={items} onBack={() => setOpenCollectionId(null)} onMenu={openMenu} actions={actions} />
+      {openPlaylist ? (
+        <PlaylistView playlist={openPlaylist} items={items} onBack={closeLibraryView} onMenu={openMenu} actions={actions} />
+      ) : openCollection ? (
+        <CollectionView collection={openCollection} items={items} onBack={closeLibraryView} onMenu={openMenu} actions={actions} />
       ) : (
         <>
           <div className="page-header">
@@ -163,7 +185,7 @@ export function LibraryPage() {
           x={menu.x}
           y={menu.y}
           onClose={closeMenu}
-          onPlay={(item) => actions.play(item, context)}
+          onPlay={(item) => actions.play(item, context, { sequence: openPlaylist !== undefined || openCollection !== undefined })}
           onEnqueue={actions.enqueue}
           onShowInFolder={actions.showInFolder}
           onDelete={setToDelete}
