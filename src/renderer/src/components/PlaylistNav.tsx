@@ -1,8 +1,9 @@
 import { Pencil, Plus, Smile, Trash2 } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { PLAYLIST_TITLE_MAX } from '@shared/playlist-ops';
 import type { Playlist } from '@shared/types';
 import { useLocale, useT } from '../i18n';
+import { hasDragItems, readDragItems } from '../lib/drag';
 import { menuPoint } from '../lib/menu-point';
 import { sortPlaylists } from '../lib/playlists';
 import { usePlaylistActions } from '../lib/use-playlist-actions';
@@ -88,6 +89,46 @@ export function PlaylistNav() {
   const sorted = useMemo(() => sortPlaylists(playlists, locale), [playlists, locale]);
   const closeMenu = useCallback(() => setMenu(null), []);
   const closeDelete = useCallback(() => setToDelete(null), []);
+  const [dropId, setDropId] = useState<string | null>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
+
+  // A drag that ends anywhere (or is cancelled with Escape) clears the highlight.
+  useEffect(() => {
+    const clear = () => setDropId(null);
+    window.addEventListener('dragend', clear);
+    window.addEventListener('drop', clear);
+    return () => {
+      window.removeEventListener('dragend', clear);
+      window.removeEventListener('drop', clear);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!flashId) return;
+    const timer = window.setTimeout(() => setFlashId(null), 700);
+    return () => window.clearTimeout(timer);
+  }, [flashId]);
+
+  const dropTarget = (playlist: Playlist) => ({
+    onDragOver: (event: DragEvent<HTMLElement>) => {
+      if (!hasDragItems(event.dataTransfer)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      setDropId(playlist.id);
+    },
+    onDragLeave: (event: DragEvent<HTMLElement>) => {
+      if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+      setDropId((id) => (id === playlist.id ? null : id));
+    },
+    onDrop: (event: DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      setDropId(null);
+      const ids = readDragItems(event.dataTransfer);
+      if (ids.length === 0) return;
+      actions.addItems(playlist, ids);
+      setFlashId(playlist.id);
+    },
+  });
 
   const create = async (title: string): Promise<void> => {
     const pending = useUi.getState().newPlaylist?.itemIds ?? [];
@@ -125,8 +166,9 @@ export function PlaylistNav() {
               ) : (
                 <button
                   type="button"
-                  className={`playlist-row${active ? ' is-active' : ''}`}
+                  className={`playlist-row${active ? ' is-active' : ''}${dropId === playlist.id ? ' is-drop' : ''}${flashId === playlist.id ? ' is-flash' : ''}`}
                   aria-current={active ? 'page' : undefined}
+                  {...dropTarget(playlist)}
                   onClick={() => openLibraryView({ type: 'playlist', id: playlist.id })}
                   onContextMenu={(event) => {
                     event.preventDefault();

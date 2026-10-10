@@ -1,4 +1,5 @@
 import { Ellipsis, Play, Volume2 } from 'lucide-react';
+import type { DragEvent } from 'react';
 import type { LibraryItem } from '@shared/types';
 import { LibraryThumb } from '../../components/LibraryThumb';
 import { useT } from '../../i18n';
@@ -13,6 +14,7 @@ export function MusicList({
   onMenu,
   selectedIds,
   onSelectClick,
+  onDragStart,
 }: {
   items: readonly LibraryItem[];
   onPlay: (item: LibraryItem) => void;
@@ -20,6 +22,8 @@ export function MusicList({
   selectedIds?: ReadonlySet<string>;
   /** Ctrl/Shift+click on a row selects it; returns true when handled. */
   onSelectClick?: (item: LibraryItem, modifiers: Modifiers) => boolean;
+  /** Makes rows draggable; the handler fills in the drag data. */
+  onDragStart?: (item: LibraryItem, event: DragEvent<HTMLElement>) => void;
 }) {
   const t = useT();
   const currentId = usePlayer((s) => s.order[s.index]);
@@ -44,6 +48,8 @@ export function MusicList({
             role="row"
             className={`track${isCurrent ? ' is-current' : ''}${item.missing ? ' is-missing' : ''}${selectedIds?.has(item.id) ? ' is-selected' : ''}`}
             aria-selected={selectedIds?.has(item.id) || undefined}
+            draggable={onDragStart !== undefined}
+            onDragStart={onDragStart ? (event) => onDragStart(item, event) : undefined}
             onClickCapture={(event) => {
               if (!(event.ctrlKey || event.metaKey || event.shiftKey) || !onSelectClick?.(item, event)) return;
               event.preventDefault();

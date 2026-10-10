@@ -1,4 +1,5 @@
 import { Check, CircleAlert, Ellipsis, Music, Play } from 'lucide-react';
+import type { DragEvent } from 'react';
 import type { LibraryItem } from '@shared/types';
 import { LibraryThumb } from '../../components/LibraryThumb';
 import { useT } from '../../i18n';
@@ -16,14 +17,27 @@ export interface MediaCardProps {
   selected?: boolean;
   /** Ctrl/Shift+click anywhere on the card selects instead of playing; returns true when handled. */
   onSelectClick?: (item: LibraryItem, modifiers: Modifiers) => boolean;
+  /** Makes the card draggable; the handler fills in the drag data. */
+  onDragStart?: (item: LibraryItem, event: DragEvent<HTMLElement>) => void;
 }
 
-export function MediaCard({ item, onPlay, onMenu, onRedownload, onRemoveMissing, selected = false, onSelectClick }: MediaCardProps) {
+export function MediaCard({
+  item,
+  onPlay,
+  onMenu,
+  onRedownload,
+  onRemoveMissing,
+  selected = false,
+  onSelectClick,
+  onDragStart,
+}: MediaCardProps) {
   const t = useT();
   const ratio = resumeRatio(item);
   return (
     <article
       className={`card${item.missing ? ' is-missing' : ''}${selected ? ' is-selected' : ''}`}
+      draggable={onDragStart !== undefined}
+      onDragStart={onDragStart ? (event) => onDragStart(item, event) : undefined}
       onClickCapture={(event) => {
         if (!(event.ctrlKey || event.metaKey || event.shiftKey) || !onSelectClick?.(item, event)) return;
         // A selecting click must not also play the video or open the menu.

@@ -778,3 +778,16 @@ img {
   margin-left: auto;
   color: var(--text-muted);
 }
+/* Drag image for several items; drag.ts places it off screen and removes it right after the browser draws it. */
+.drag-ghost {
+  position: fixed;
+  top: -200px;
+  left: -200px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 600 13px var(--font-sans);
+  white-space: nowrap;
+  pointer-events: none;
+}

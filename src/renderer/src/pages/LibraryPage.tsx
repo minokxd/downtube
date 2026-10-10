@@ -1,9 +1,10 @@
 import { Play, Search, Shuffle, Sparkles } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type DragEvent, type ReactNode } from 'react';
 import type { LibraryItem, Playlist } from '@shared/types';
 import { ContextMenu } from '../components/ContextMenu';
 import { PlaylistPicker } from '../components/PlaylistPicker';
 import { useLocale, useT, type MessageKey } from '../i18n';
+import { setCountDragImage, writeDragItems } from '../lib/drag';
 import { stepAnchor } from '../lib/playlists';
 import { usePlaylistActions } from '../lib/use-playlist-actions';
 import { useLibrary } from '../stores/library';
@@ -73,6 +74,15 @@ export function LibraryPage() {
   const selectedIds = useMemo(() => order.filter((id) => selection.ids.has(id)), [order, selection.ids]);
   const selectClick = useCallback((item: LibraryItem, modifiers: Modifiers) => selection.click(item.id, modifiers), [selection]);
   const closePicker = useCallback(() => setPickerAt(null), []);
+  // Dragging a selected item takes the whole selection along.
+  const startDrag = useCallback(
+    (item: LibraryItem, event: DragEvent<HTMLElement>) => {
+      const ids = selection.targets(item.id);
+      writeDragItems(event.dataTransfer, ids);
+      if (ids.length > 1) setCountDragImage(event.dataTransfer, t('library.items', { count: ids.length }));
+    },
+    [selection, t],
+  );
 
   const playlistMenu = (playlist: Playlist, item: LibraryItem): ItemMenuPlaylist => {
     const earlier = stepAnchor(playlist.itemIds, item.id, -1);
@@ -147,6 +157,7 @@ export function LibraryPage() {
           onMenu={openMenu}
           selectedIds={selection.ids}
           onSelectClick={selectClick}
+          onDragStart={startDrag}
         />
       </>
     );
@@ -159,6 +170,7 @@ export function LibraryPage() {
             item={item}
             selected={selection.ids.has(item.id)}
             onSelectClick={selectClick}
+            onDragStart={startDrag}
             onPlay={(target) => actions.play(target, visible)}
             onMenu={openMenu}
             onRedownload={actions.redownload}
@@ -188,6 +200,7 @@ export function LibraryPage() {
           actions={actions}
           selectedIds={selection.ids}
           onSelectClick={selectClick}
+          onDragStart={startDrag}
         />
       ) : openCollection ? (
         <CollectionView
@@ -198,6 +211,7 @@ export function LibraryPage() {
           actions={actions}
           selectedIds={selection.ids}
           onSelectClick={selectClick}
+          onDragStart={startDrag}
         />
       ) : (
         <>

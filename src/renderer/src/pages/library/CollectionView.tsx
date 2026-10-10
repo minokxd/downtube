@@ -1,5 +1,5 @@
 import { ChevronLeft, Play, Shuffle } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, type DragEvent } from 'react';
 import type { Collection, LibraryItem } from '@shared/types';
 import { Thumb } from '../../components/Thumb';
 import { useT } from '../../i18n';
@@ -17,6 +17,7 @@ export function CollectionView({
   actions,
   selectedIds,
   onSelectClick,
+  onDragStart,
 }: {
   collection: Collection;
   items: readonly LibraryItem[];
@@ -25,6 +26,7 @@ export function CollectionView({
   actions: ItemActions;
   selectedIds: ReadonlySet<string>;
   onSelectClick: (item: LibraryItem, modifiers: Modifiers) => boolean;
+  onDragStart: (item: LibraryItem, event: DragEvent<HTMLElement>) => void;
 }) {
   const t = useT();
   const list = useMemo(() => collectionItems(collection, items), [collection, items]);
@@ -63,6 +65,7 @@ export function CollectionView({
             item={item}
             selected={selectedIds.has(item.id)}
             onSelectClick={onSelectClick}
+            onDragStart={onDragStart}
             onPlay={(target) => actions.play(target, list, { sequence: true })}
             onMenu={onMenu}
             onRedownload={actions.redownload}

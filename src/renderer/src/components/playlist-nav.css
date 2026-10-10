@@ -127,3 +127,30 @@
   margin-top: 4px;
   color: var(--text-muted);
 }
+
+.playlist-row.is-drop {
+  color: var(--text);
+  background: var(--accent-soft);
+  outline: 1.5px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+.playlist-row.is-flash {
+  animation: playlist-flash 700ms var(--ease);
+}
+
+@keyframes playlist-flash {
+  from {
+    background: var(--accent-soft);
+    color: var(--text);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playlist-row.is-flash {
+    animation: none;
+  }
+}

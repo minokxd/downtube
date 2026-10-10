@@ -476,3 +476,29 @@
   font-size: 13px;
   font-weight: 600;
 }
+
+.reorder-slot {
+  position: relative;
+  min-width: 0;
+}
+
+/* The grid's column gap is 18px, so 11px out puts the line in the middle of the gap. */
+.reorder-slot.is-drop-before::before,
+.reorder-slot.is-drop-after::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.reorder-slot.is-drop-before::before {
+  left: -11px;
+}
+
+.reorder-slot.is-drop-after::after {
+  right: -11px;
+}

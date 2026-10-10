@@ -1,11 +1,13 @@
 import { ChevronLeft, Play, Shuffle } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import type { LibraryItem, Playlist } from '@shared/types';
 import { LibraryThumb } from '../../components/LibraryThumb';
 import { PlaylistIcon } from '../../components/PlaylistIcon';
 import { useT } from '../../i18n';
+import { anchorFor, dropSide, hasDragItems, readDragItems, type DropSide } from '../../lib/drag';
 import { formatDuration } from '../../lib/format';
 import { coverItem, totalDuration } from '../../lib/playlists';
+import { usePlaylistActions } from '../../lib/use-playlist-actions';
 import { collectionItems } from './library-logic';
 import { MediaCard } from './MediaCard';
 import type { ItemActions } from './use-item-actions';
@@ -19,6 +21,7 @@ export function PlaylistView({
   actions,
   selectedIds,
   onSelectClick,
+  onDragStart,
 }: {
   playlist: Playlist;
   items: readonly LibraryItem[];
@@ -27,9 +30,23 @@ export function PlaylistView({
   actions: ItemActions;
   selectedIds: ReadonlySet<string>;
   onSelectClick: (item: LibraryItem, modifiers: Modifiers) => boolean;
+  onDragStart: (item: LibraryItem, event: DragEvent<HTMLElement>) => void;
 }) {
   const t = useT();
   const list = useMemo(() => collectionItems(playlist, items), [playlist, items]);
+  const playlistActions = usePlaylistActions();
+  const order = useMemo(() => list.map((item) => item.id), [list]);
+  const [indicator, setIndicator] = useState<{ id: string; side: DropSide } | null>(null);
+
+  useEffect(() => {
+    const clear = () => setIndicator(null);
+    window.addEventListener('dragend', clear);
+    window.addEventListener('drop', clear);
+    return () => {
+      window.removeEventListener('dragend', clear);
+      window.removeEventListener('drop', clear);
+    };
+  }, []);
   const cover = coverItem(list);
   const playable = list.some((item) => !item.missing);
 
@@ -74,16 +91,35 @@ export function PlaylistView({
       ) : (
         <div className="grid">
           {list.map((item) => (
-            <MediaCard
+            <div
               key={item.id}
-              item={item}
-              selected={selectedIds.has(item.id)}
-              onSelectClick={onSelectClick}
-              onPlay={(target) => actions.play(target, list, { sequence: true })}
-              onMenu={onMenu}
-              onRedownload={actions.redownload}
-              onRemoveMissing={actions.removeEntry}
-            />
+              className={`reorder-slot${indicator?.id === item.id ? ` is-drop-${indicator.side}` : ''}`}
+              onDragOver={(event) => {
+                if (!hasDragItems(event.dataTransfer)) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                const side = dropSide(event.clientX, event.currentTarget.getBoundingClientRect());
+                setIndicator((current) => (current?.id === item.id && current.side === side ? current : { id: item.id, side }));
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const side = dropSide(event.clientX, event.currentTarget.getBoundingClientRect());
+                setIndicator(null);
+                const ids = readDragItems(event.dataTransfer).filter((id) => order.includes(id));
+                if (ids.length > 0) playlistActions.moveItems(playlist.id, ids, anchorFor(order, item.id, side));
+              }}
+            >
+              <MediaCard
+                item={item}
+                selected={selectedIds.has(item.id)}
+                onSelectClick={onSelectClick}
+                onDragStart={onDragStart}
+                onPlay={(target) => actions.play(target, list, { sequence: true })}
+                onMenu={onMenu}
+                onRedownload={actions.redownload}
+                onRemoveMissing={actions.removeEntry}
+              />
+            </div>
           ))}
         </div>
       )}
