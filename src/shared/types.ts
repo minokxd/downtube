@@ -66,6 +66,7 @@ export interface Collection {
 export interface LibrarySnapshot {
   items: LibraryItem[];
   collections: Collection[];
+  playlists: Playlist[];
 }
 
 export interface Playlist {

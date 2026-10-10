@@ -140,7 +140,7 @@ describe('LibraryStore', () => {
     const trash = vi.fn(async (_path: string) => undefined);
     await store.remove(item.id, true, trash);
     expect(trash.mock.calls).toEqual([[item.filePath], [thumb], [sub]]);
-    expect(store.snapshot()).toEqual({ items: [], collections: [] });
+    expect(store.snapshot()).toEqual({ items: [], collections: [], playlists: [] });
   });
 
   it('keeps files when removing from the library only', async () => {
@@ -195,7 +195,7 @@ describe('LibraryStore', () => {
     });
     await expect(store.remove(item.id, true, trash)).rejects.toThrow(enPath);
     expect(store.get(item.id)).toBeUndefined();
-    expect(store.snapshot()).toEqual({ items: [], collections: [] });
+    expect(store.snapshot()).toEqual({ items: [], collections: [], playlists: [] });
     expect(trash.mock.calls.map(([path]) => path)).toEqual([item.filePath, thumb, enPath, trPath]);
   });
 
@@ -239,7 +239,7 @@ describe('LibraryStore', () => {
     await writeFile(file, 'not json', 'utf8');
     const store = await LibraryStore.open(file);
     expect(store.recovered).toBe('reset');
-    expect(store.snapshot()).toEqual({ items: [], collections: [] });
+    expect(store.snapshot()).toEqual({ items: [], collections: [], playlists: [] });
   });
 });
 
@@ -251,5 +251,95 @@ describe('sanitizeLibrary', () => {
     });
     expect(data.items.map((i) => i.id)).toEqual(['ok']);
     expect(data.collections[0]?.itemIds).toEqual(['ok']);
+  });
+
+  it('keeps valid playlists and drops unknown or repeated items and foreign emoji', () => {
+    const data = sanitizeLibrary({
+      items: [validItem()],
+      playlists: [
+        { id: 'p1', title: '  Kediler  ', emoji: '🦄', itemIds: ['ok', 'gone', 'ok'], createdAt: 'x' },
+        { id: 'p2', title: '   ', itemIds: [] },
+        { id: 3, title: 'bad', itemIds: [] },
+        { id: 'p4', title: 'ok', emoji: '🐱', itemIds: 'nope' },
+      ],
+    });
+    expect(data.playlists).toEqual([{ id: 'p1', title: 'Kediler', itemIds: ['ok'], createdAt: 'x' }]);
+  });
+
+  it('starts with no playlists when an older file has none', () => {
+    expect(sanitizeLibrary({ items: [], collections: [] }).playlists).toEqual([]);
+  });
+});
+
+describe('playlists', () => {
+  const video = (store: LibraryStore, videoId: string) => store.addFromDownload(input({}, videoId));
+
+  it('creates, renames, sets and clears the emoji, and persists', async () => {
+    const store = await LibraryStore.open(file);
+    const playlist = await store.createPlaylist('Kedi videoları', '🐱');
+    expect(playlist).toMatchObject({ title: 'Kedi videoları', emoji: '🐱', itemIds: [] });
+    await store.updatePlaylist(playlist.id, { title: 'Kediler' });
+    await store.updatePlaylist(playlist.id, { emoji: null });
+    const saved = (await LibraryStore.open(file)).snapshot().playlists[0];
+    expect(saved?.title).toBe('Kediler');
+    expect(saved).not.toHaveProperty('emoji');
+  });
+
+  it('adds items once, in order, ignoring unknown ids, with one write per call', async () => {
+    const store = await LibraryStore.open(file);
+    const a = await video(store, 'aaaaaaaaaaa');
+    const b = await video(store, 'bbbbbbbbbbb');
+    const playlist = await store.createPlaylist('Mix');
+    const changes = vi.fn();
+    store.onChange(changes);
+    expect(await store.addToPlaylist(playlist.id, [b.id, a.id, 'nope'])).toEqual({ added: 2, already: 0 });
+    expect(changes).toHaveBeenCalledTimes(1);
+    expect(await store.addToPlaylist(playlist.id, [a.id])).toEqual({ added: 0, already: 1 });
+    expect(changes).toHaveBeenCalledTimes(1);
+    expect(store.snapshot().playlists[0]?.itemIds).toEqual([b.id, a.id]);
+  });
+
+  it('reorders and removes items', async () => {
+    const store = await LibraryStore.open(file);
+    const ids: string[] = [];
+    for (const videoId of ['aaaaaaaaaaa', 'bbbbbbbbbbb', 'ccccccccccc']) ids.push((await video(store, videoId)).id);
+    const [a, b, c] = ids as [string, string, string];
+    const playlist = await store.createPlaylist('Mix');
+    await store.addToPlaylist(playlist.id, ids);
+    await store.movePlaylistItems(playlist.id, [c], a);
+    expect(store.snapshot().playlists[0]?.itemIds).toEqual([c, a, b]);
+    await store.removeFromPlaylist(playlist.id, [a]);
+    expect(store.snapshot().playlists[0]?.itemIds).toEqual([c, b]);
+  });
+
+  it('deletes a playlist but keeps its videos', async () => {
+    const store = await LibraryStore.open(file);
+    const item = await video(store, 'aaaaaaaaaaa');
+    const playlist = await store.createPlaylist('Mix');
+    await store.addToPlaylist(playlist.id, [item.id]);
+    await store.deletePlaylist(playlist.id);
+    expect(store.snapshot().playlists).toEqual([]);
+    expect(store.get(item.id)).toBeDefined();
+  });
+
+  it('drops a removed item from every playlist and keeps the emptied playlists', async () => {
+    const store = await LibraryStore.open(file);
+    const item = await video(store, 'aaaaaaaaaaa');
+    const one = await store.createPlaylist('One');
+    const two = await store.createPlaylist('Two');
+    await store.addToPlaylist(one.id, [item.id]);
+    await store.addToPlaylist(two.id, [item.id]);
+    await store.remove(item.id, false, async () => undefined);
+    expect(store.snapshot().playlists.map((p) => [p.title, p.itemIds])).toEqual([
+      ['One', []],
+      ['Two', []],
+    ]);
+  });
+
+  it('rejects an unknown playlist id', async () => {
+    const store = await LibraryStore.open(file);
+    await expect(store.addToPlaylist('missing', ['x'])).rejects.toThrow('playlist not found');
+    await expect(store.updatePlaylist('missing', { title: 'x' })).rejects.toThrow('playlist not found');
+    await expect(store.deletePlaylist('missing')).rejects.toThrow('playlist not found');
   });
 });

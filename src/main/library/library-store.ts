@@ -1,6 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
-import type { Collection, JobCollectionRef, LibraryItem, LibrarySnapshot, MediaKind, SubtitleTrack } from '@shared/types';
+import { isPlaylistEmoji } from '@shared/playlist-emojis';
+import { addIds, cleanPlaylistTitle, moveIds, removeIds } from '@shared/playlist-ops';
+import type {
+  Collection,
+  JobCollectionRef,
+  LibraryItem,
+  LibrarySnapshot,
+  MediaKind,
+  Playlist,
+  PlaylistAddResult,
+  PlaylistPatch,
+  SubtitleTrack,
+} from '@shared/types';
 import { JsonFile, type RecoveryState } from '../json-store';
 import type { DoneInfo } from '../ytdlp/output';
 
@@ -8,6 +20,7 @@ export interface LibraryData {
   version: 1;
   items: LibraryItem[];
   collections: Collection[];
+  playlists: Playlist[];
 }
 
 export interface AddFromDownloadInput {
@@ -22,7 +35,7 @@ export interface AddFromDownloadInput {
 
 const COMPLETE_RATIO = 0.95;
 
-const emptyData = (): LibraryData => ({ version: 1, items: [], collections: [] });
+const emptyData = (): LibraryData => ({ version: 1, items: [], collections: [], playlists: [] });
 
 function isLibraryItem(value: unknown): value is LibraryItem {
   if (typeof value !== 'object' || value === null) return false;
@@ -54,6 +67,21 @@ function isCollection(value: unknown): value is Collection {
   );
 }
 
+function sanitizePlaylist(value: unknown, itemIds: ReadonlySet<string>): Playlist | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const p = value as Partial<Playlist>;
+  const title = cleanPlaylistTitle(p.title);
+  if (typeof p.id !== 'string' || title === null || !Array.isArray(p.itemIds)) return null;
+  const playlist: Playlist = {
+    id: p.id,
+    title,
+    itemIds: [...new Set(p.itemIds.filter((id): id is string => typeof id === 'string' && itemIds.has(id)))],
+    createdAt: typeof p.createdAt === 'string' ? p.createdAt : '',
+  };
+  if (isPlaylistEmoji(p.emoji)) playlist.emoji = p.emoji;
+  return playlist;
+}
+
 // Only a missing path counts as "already gone". Any other access error is left for
 // trash to report, so a locked or unreadable file is never dropped silently.
 async function existsOnDisk(path: string): Promise<boolean> {
@@ -69,13 +97,17 @@ const errorMessage = (err: unknown): string => (err instanceof Error ? err.messa
 
 export function sanitizeLibrary(raw: unknown): LibraryData {
   if (typeof raw !== 'object' || raw === null) return emptyData();
-  const r = raw as { items?: unknown; collections?: unknown };
+  const r = raw as { items?: unknown; collections?: unknown; playlists?: unknown };
   const items = Array.isArray(r.items) ? r.items.filter(isLibraryItem) : [];
   const ids = new Set(items.map((item) => item.id));
   const collections = Array.isArray(r.collections)
     ? r.collections.filter(isCollection).map((c) => ({ ...c, itemIds: c.itemIds.filter((id) => ids.has(id)) }))
     : [];
-  return { version: 1, items, collections };
+  // Files written before playlists existed have no such field.
+  const playlists = Array.isArray(r.playlists)
+    ? r.playlists.map((p) => sanitizePlaylist(p, ids)).filter((p): p is Playlist => p !== null)
+    : [];
+  return { version: 1, items, collections, playlists };
 }
 
 export class LibraryStore {
@@ -94,7 +126,7 @@ export class LibraryStore {
   }
 
   snapshot(): LibrarySnapshot {
-    return structuredClone({ items: this.data.items, collections: this.data.collections });
+    return structuredClone({ items: this.data.items, collections: this.data.collections, playlists: this.data.playlists });
   }
 
   get(id: string): LibraryItem | undefined {
@@ -208,6 +240,8 @@ export class LibraryStore {
         collection.thumbPath = collection.itemIds.map((x) => this.get(x)?.thumbPath).find((p) => p !== undefined);
       }
     }
+    // The user's playlists stay even when this empties them; only YouTube collections go away when empty.
+    for (const playlist of this.data.playlists) playlist.itemIds = playlist.itemIds.filter((x) => x !== id);
     this.data.collections = this.data.collections.filter((c) => c.itemIds.length > 0);
     await this.commit();
     if (leftovers.length > 0) throw new Error(`Could not move these files to the trash: ${leftovers.join(', ')}`);
@@ -240,6 +274,57 @@ export class LibraryStore {
       changed = true;
     }
     if (changed) await this.commit();
+  }
+
+  async createPlaylist(title: string, emoji?: string): Promise<Playlist> {
+    const playlist: Playlist = { id: randomUUID(), title, itemIds: [], createdAt: new Date().toISOString() };
+    if (emoji !== undefined) playlist.emoji = emoji;
+    this.data.playlists.push(playlist);
+    await this.commit();
+    return structuredClone(playlist);
+  }
+
+  async updatePlaylist(id: string, patch: PlaylistPatch): Promise<void> {
+    const playlist = this.playlist(id);
+    if (patch.title !== undefined) playlist.title = patch.title;
+    if (patch.emoji === null) delete playlist.emoji;
+    else if (patch.emoji !== undefined) playlist.emoji = patch.emoji;
+    await this.commit();
+  }
+
+  async deletePlaylist(id: string): Promise<void> {
+    this.playlist(id);
+    this.data.playlists = this.data.playlists.filter((p) => p.id !== id);
+    await this.commit();
+  }
+
+  async addToPlaylist(id: string, itemIds: readonly string[]): Promise<PlaylistAddResult> {
+    const playlist = this.playlist(id);
+    const result = addIds(
+      playlist.itemIds,
+      itemIds.filter((itemId) => this.get(itemId) !== undefined),
+    );
+    playlist.itemIds = result.itemIds;
+    if (result.added > 0) await this.commit();
+    return { added: result.added, already: result.already };
+  }
+
+  async removeFromPlaylist(id: string, itemIds: readonly string[]): Promise<void> {
+    const playlist = this.playlist(id);
+    playlist.itemIds = removeIds(playlist.itemIds, itemIds);
+    await this.commit();
+  }
+
+  async movePlaylistItems(id: string, itemIds: readonly string[], beforeId: string | null): Promise<void> {
+    const playlist = this.playlist(id);
+    playlist.itemIds = moveIds(playlist.itemIds, itemIds, beforeId);
+    await this.commit();
+  }
+
+  private playlist(id: string): Playlist {
+    const playlist = this.data.playlists.find((p) => p.id === id);
+    if (!playlist) throw new Error('playlist not found');
+    return playlist;
   }
 
   onChange(listener: () => void): () => void {
