@@ -46,7 +46,7 @@ export function MusicBar() {
         {item ? <LibraryThumb item={item} className="musicbar-cover" /> : <div className="musicbar-cover thumb-fallback" />}
         <div className="musicbar-text">
           <div className="musicbar-title" title={item?.title}>
-            {item?.title ?? '—'}
+            {item?.title ?? '-'}
           </div>
           <div className="musicbar-artist">{item ? (item.artist ?? item.channel) : ''}</div>
         </div>

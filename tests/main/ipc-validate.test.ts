@@ -125,7 +125,7 @@ describe('assertSettingsPatch', () => {
 });
 
 describe('playlist assertions', () => {
-  it('accepts a trimmed title of 1–80 characters', () => {
+  it('accepts a trimmed title of 1 to 80 characters', () => {
     expect(assertPlaylistTitle('  Kedi videoları ')).toBe('Kedi videoları');
     expect(assertPlaylistTitle('x'.repeat(80))).toHaveLength(80);
   });
@@ -150,7 +150,7 @@ describe('playlist assertions', () => {
     expect(() => assertPlaylistPatch([])).toThrow(IpcValidationError);
   });
 
-  it('accepts a de-duplicated list of 1–5000 ids', () => {
+  it('accepts a de-duplicated list of 1 to 5000 ids', () => {
     expect(assertIdList(['a-1', 'b', 'a-1'])).toEqual(['a-1', 'b']);
     expect(() => assertIdList([])).toThrow(IpcValidationError);
     expect(() => assertIdList(['../x'])).toThrow(IpcValidationError);

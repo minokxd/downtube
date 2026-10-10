@@ -11,7 +11,7 @@ export function formatDuration(totalSec: number | undefined): string {
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];
 
 export function formatBytes(bytes: number | undefined, locale = 'tr-TR'): string {
-  if (bytes === undefined || !Number.isFinite(bytes)) return '—';
+  if (bytes === undefined || !Number.isFinite(bytes)) return '-';
   let value = bytes;
   let unit = 0;
   while (value >= 1024 && unit < UNITS.length - 1) {

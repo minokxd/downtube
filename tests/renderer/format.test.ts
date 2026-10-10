@@ -22,7 +22,7 @@ describe('formatBytes', () => {
     expect(formatBytes(1536, 'en-US')).toBe('1.5 KB');
     expect(formatBytes(1536, 'tr-TR')).toBe('1,5 KB');
     expect(formatBytes(5 * 1024 * 1024, 'en-US')).toBe('5 MB');
-    expect(formatBytes(undefined)).toBe('—');
+    expect(formatBytes(undefined)).toBe('-');
   });
 });
 

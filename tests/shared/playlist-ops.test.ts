@@ -51,7 +51,7 @@ describe('moveIds', () => {
 });
 
 describe('cleanPlaylistTitle', () => {
-  it('trims and accepts 1–80 characters', () => {
+  it('trims and accepts 1 to 80 characters', () => {
     expect(cleanPlaylistTitle('  Kedi videoları  ')).toBe('Kedi videoları');
     expect(cleanPlaylistTitle('x'.repeat(80))).toHaveLength(80);
   });
