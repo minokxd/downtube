@@ -10,6 +10,8 @@ import {
   type ProbeList,
   type ProbeVideo,
   type Quality,
+  type SpotifyList,
+  type SpotifyTrack,
 } from '@shared/types';
 import { useLocale, useT } from '../i18n';
 import { ERROR_LABEL, QUALITY_LABEL } from '../i18n/labels';
@@ -17,7 +19,19 @@ import { formatBytes, formatDuration } from '../lib/format';
 import { useLibrary } from '../stores/library';
 import { useSettings } from '../stores/settings';
 import { useUi } from '../stores/ui';
-import { inLibraryIds, listJobs, listSize, listSubmitIds, mergeEntries, playlistUrl, videoJob, videoSize } from './add-dialog-logic';
+import {
+  inLibraryIds,
+  listJobs,
+  listSize,
+  listSubmitIds,
+  mergeEntries,
+  mergeTracks,
+  ownedSpotifyIds,
+  playlistUrl,
+  spotifyJobs,
+  videoJob,
+  videoSize,
+} from './add-dialog-logic';
 import { Segmented, Switch } from './controls';
 import { Thumb } from './Thumb';
 import './add-dialog.css';
@@ -26,7 +40,8 @@ type DialogState =
   | { phase: 'loading' }
   | { phase: 'error'; code: ErrorCode; log?: string }
   | { phase: 'video'; video: ProbeVideo }
-  | { phase: 'list'; list: ProbeList; entries: ProbeEntry[]; loadingMore: boolean };
+  | { phase: 'list'; list: ProbeList; entries: ProbeEntry[]; loadingMore: boolean }
+  | { phase: 'spotify'; list: SpotifyList; tracks: SpotifyTrack[]; loadingMore: boolean };
 
 export function AddDialog() {
   const url = useUi((s) => s.addUrl);
@@ -53,6 +68,7 @@ function AddDialogContent({ url }: { url: string }) {
   const [showLog, setShowLog] = useState(false);
   const [free, setFree] = useState<number | null>(null);
   const owned = useMemo(() => inLibraryIds(items, kind), [items, kind]);
+  const ownedSongs = useMemo(() => ownedSpotifyIds(items), [items]);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +98,9 @@ function AddDialogContent({ url }: { url: string }) {
           setQuality(pickDefaultQuality(availableQualities(result.video.heights), settings?.defaultQuality ?? '1080'));
           if (!result.video.hasSubtitles && !settings?.subtitles.includeAuto) setSubtitles(false);
           setState({ phase: 'video', video: result.video });
+        } else if (result.type === 'spotify') {
+          setSelected(new Set(result.list.tracks.map((track) => track.id)));
+          setState({ phase: 'spotify', list: result.list, tracks: result.list.tracks, loadingMore: false });
         } else {
           setSelected(new Set(result.list.entries.map((e) => e.videoId)));
           setState({ phase: 'list', list: result.list, entries: result.list.entries, loadingMore: false });
@@ -108,16 +127,28 @@ function AddDialogContent({ url }: { url: string }) {
   const entries = state.phase === 'list' ? state.entries : [];
   const selectable = entries.filter((entry) => !owned.has(entry.videoId));
   const chosen = selectable.filter((entry) => selected.has(entry.videoId));
-  const allChosen = selectable.length > 0 && chosen.length === selectable.length;
+  const songs = state.phase === 'spotify' ? state.tracks : [];
+  const selectableSongs = songs.filter((track) => !ownedSongs.has(track.id));
+  const chosenSongs = selectableSongs.filter((track) => selected.has(track.id));
+  const selectableIds = state.phase === 'spotify' ? selectableSongs.map((track) => track.id) : selectable.map((entry) => entry.videoId);
+  const chosenCount = state.phase === 'spotify' ? chosenSongs.length : chosen.length;
+  const allChosen = selectableIds.length > 0 && chosenCount === selectableIds.length;
   const qualityOptions = state.phase === 'video' ? availableQualities(state.video.heights) : QUALITIES;
   const canSubmit =
-    !submitting && (state.phase === 'video' ? !owned.has(state.video.videoId) : state.phase === 'list' && chosen.length > 0);
+    !submitting &&
+    (state.phase === 'video'
+      ? !owned.has(state.video.videoId)
+      : state.phase === 'list'
+        ? chosen.length > 0
+        : state.phase === 'spotify' && chosenSongs.length > 0);
   const size =
     state.phase === 'video'
       ? videoSize(state.video, kind, quality)
       : state.phase === 'list'
         ? listSize(chosen, kind, quality)
-        : undefined;
+        : state.phase === 'spotify'
+          ? listSize(chosenSongs, 'audio', quality)
+          : undefined;
   const lowSpace = size !== undefined && free !== null && size.bytes > free;
 
   const toggle = (videoId: string): void => {
@@ -130,10 +161,29 @@ function AddDialogContent({ url }: { url: string }) {
   };
 
   const toggleAll = (): void => {
-    setSelected(allChosen ? new Set() : new Set(selectable.map((entry) => entry.videoId)));
+    setSelected(allChosen ? new Set() : new Set(selectableIds));
+  };
+
+  const loadMoreSongs = async (current: Extract<DialogState, { phase: 'spotify' }>): Promise<void> => {
+    setState({ ...current, loadingMore: true });
+    const response = await window.downtube.probe(current.list.sourceUrl, current.list.nextStart).catch(() => null);
+    if (!response || !response.ok || response.result.type !== 'spotify') {
+      pushToast({ message: t(ERROR_LABEL[response && !response.ok ? response.code : 'UNKNOWN']), tone: 'error' });
+      setState({ ...current, loadingMore: false });
+      return;
+    }
+    const next = response.result.list;
+    setSelected((sel) => new Set([...sel, ...next.tracks.map((track) => track.id)]));
+    setState({
+      phase: 'spotify',
+      list: { ...current.list, hasMore: next.hasMore, nextStart: next.nextStart, totalCount: next.totalCount ?? current.list.totalCount },
+      tracks: mergeTracks(current.tracks, next.tracks),
+      loadingMore: false,
+    });
   };
 
   const loadMore = async (): Promise<void> => {
+    if (state.phase === 'spotify' && !state.loadingMore) return loadMoreSongs(state);
     if (state.phase !== 'list' || state.loadingMore) return;
     const current = state;
     setState({ ...current, loadingMore: true });
@@ -158,6 +208,11 @@ function AddDialogContent({ url }: { url: string }) {
     let inputs: NewJobInput[] = [];
     if (state.phase === 'video') inputs = [videoJob(state.video, choice)];
     else if (state.phase === 'list') inputs = listJobs(state.list, state.entries, listSubmitIds(state.entries, chosen, owned), choice);
+    else if (state.phase === 'spotify') {
+      // Owned songs go along so they join the new album or playlist, as listSubmitIds does for YouTube.
+      const ids = new Set([...chosenSongs, ...state.tracks.filter((track) => ownedSongs.has(track.id))].map((track) => track.id));
+      inputs = spotifyJobs(state.list, state.tracks, ids, quality);
+    }
     if (inputs.length === 0) return;
     setSubmitting(true);
     try {
@@ -209,6 +264,24 @@ function AddDialogContent({ url }: { url: string }) {
         </div>
       )}
       {kind === 'video' && state.phase === 'video' && !state.video.hasSubtitles && <p className="add-note">{t('add.noSubtitles')}</p>}
+    </div>
+  );
+
+  const loadMoreButton = (loadingMore: boolean) => (
+    <div className="add-load-more">
+      <button type="button" className="btn btn-sm" disabled={loadingMore} onClick={() => void loadMore()}>
+        {loadingMore && <LoaderCircle size={14} className="spin" aria-hidden="true" />}
+        {t('add.loadMore')}
+      </button>
+    </div>
+  );
+
+  const listHead = (
+    <div className="add-list-head">
+      <span className="add-option-label">{t('add.selected', { count: chosenCount })}</span>
+      <button type="button" className="btn btn-ghost btn-sm" disabled={selectableIds.length === 0} onClick={toggleAll}>
+        {allChosen ? t('add.selectNone') : t('add.selectAll')}
+      </button>
     </div>
   );
 
@@ -268,6 +341,92 @@ function AddDialogContent({ url }: { url: string }) {
         {owned.has(video.videoId) && <p className="add-warning">{t('add.alreadyInLibrary')}</p>}
       </>
     );
+  } else if (state.phase === 'spotify') {
+    const { list, tracks } = state;
+    const note = <p className="add-note">{t('add.spotifyNote')}</p>;
+    const single = list.kind === 'track' ? tracks[0] : undefined;
+    if (single) {
+      body = (
+        <>
+          <div className="add-media is-song">
+            <Thumb src={single.coverUrl ?? list.coverUrl} className="add-thumb" kind="audio" />
+            <div>
+              <p className="add-media-title">{single.title}</p>
+              <p className="add-media-meta">
+                {single.artist}
+                {single.durationSec !== undefined && ` · ${formatDuration(single.durationSec)}`}
+              </p>
+              {note}
+            </div>
+          </div>
+          {ownedSongs.has(single.id) && <p className="add-warning">{t('add.alreadyInLibrary')}</p>}
+        </>
+      );
+    } else {
+      body = (
+        <>
+          <div className="add-media is-song">
+            <Thumb src={list.coverUrl} className="add-thumb" kind="audio" />
+            <div>
+              <p className="add-media-title">{list.title}</p>
+              <p className="add-media-meta">
+                <span className="badge">{list.kind === 'album' ? t('add.album') : t('add.playlist')}</span>
+                {list.owner}
+              </p>
+              <p className="add-media-meta">
+                {list.totalCount && list.totalCount > tracks.length
+                  ? t('add.songCountOf', { count: tracks.length, total: list.totalCount })
+                  : t('add.songCount', { count: tracks.length })}
+              </p>
+              {note}
+            </div>
+          </div>
+          {list.partial && <p className="add-warning">{t('add.spotifyPartial', { count: tracks.length })}</p>}
+          {tracks.length === 0 ? (
+            <p className="add-note" style={{ marginTop: 16 }}>
+              {t('add.noSongs')}
+            </p>
+          ) : (
+            <>
+              {listHead}
+              <ul className="add-list">
+                {tracks.map((track, index) => {
+                  const isOwned = ownedSongs.has(track.id);
+                  return (
+                    <li key={track.id}>
+                      <label className={`add-entry is-song${isOwned ? ' is-owned' : ''}`}>
+                        <input
+                          type="checkbox"
+                          className="check"
+                          checked={!isOwned && selected.has(track.id)}
+                          disabled={isOwned}
+                          onChange={() => toggle(track.id)}
+                        />
+                        {list.kind === 'album' ? (
+                          <span className="add-entry-number">{track.trackNumber ?? index + 1}</span>
+                        ) : (
+                          <Thumb src={track.coverUrl} className="add-entry-thumb" kind="audio" />
+                        )}
+                        <span className="add-entry-text">
+                          <span className="add-entry-title" title={track.title}>
+                            {track.title}
+                          </span>
+                          <span className="add-entry-sub">{track.artist}</span>
+                        </span>
+                        <span className="add-entry-meta">
+                          {isOwned ? <span className="badge badge-accent">{t('add.inLibrary')}</span> : formatDuration(track.durationSec)}
+                        </span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+              {list.hasMore && loadMoreButton(state.loadingMore)}
+            </>
+          )}
+        </>
+      );
+    }
   } else {
     const { list } = state;
     body = (
@@ -286,12 +445,7 @@ function AddDialogContent({ url }: { url: string }) {
           </p>
         ) : (
           <>
-            <div className="add-list-head">
-              <span className="add-option-label">{t('add.selected', { count: chosen.length })}</span>
-              <button type="button" className="btn btn-ghost btn-sm" disabled={selectable.length === 0} onClick={toggleAll}>
-                {allChosen ? t('add.selectNone') : t('add.selectAll')}
-              </button>
-            </div>
+            {listHead}
             <ul className="add-list">
               {state.entries.map((entry) => {
                 const isOwned = owned.has(entry.videoId);
@@ -317,14 +471,7 @@ function AddDialogContent({ url }: { url: string }) {
                 );
               })}
             </ul>
-            {list.hasMore && (
-              <div className="add-load-more">
-                <button type="button" className="btn btn-sm" disabled={state.loadingMore} onClick={() => void loadMore()}>
-                  {state.loadingMore && <LoaderCircle size={14} className="spin" aria-hidden="true" />}
-                  {t('add.loadMore')}
-                </button>
-              </div>
-            )}
+            {list.hasMore && loadMoreButton(state.loadingMore)}
           </>
         )}
       </>
@@ -369,7 +516,11 @@ function AddDialogContent({ url }: { url: string }) {
             </button>
           ) : (
             <button type="button" className="btn btn-primary" disabled={!canSubmit} onClick={() => void submit()}>
-              {state.phase === 'list' ? t('add.downloadSelected', { count: chosen.length }) : t('add.download')}
+              {state.phase === 'list'
+                ? t('add.downloadSelected', { count: chosen.length })
+                : state.phase === 'spotify' && state.list.kind !== 'track'
+                  ? t('add.downloadSongs', { count: chosenSongs.length })
+                  : t('add.download')}
             </button>
           )}
         </div>

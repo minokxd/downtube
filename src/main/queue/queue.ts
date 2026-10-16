@@ -8,9 +8,10 @@ import { ProgressTracker, initialProgress } from '../ytdlp/progress';
 export interface QueueDeps {
   startDownload(job: Job, onEvent: (event: YtdlpEvent) => void): RunHandle;
   onCompleted(job: Job, done: DoneInfo): Promise<string>;
-  isInLibrary(videoId: string, kind: MediaKind): boolean;
+  /** `spotifyId` is set for a Spotify song, whose `videoId` stays empty until it is matched. */
+  isInLibrary(videoId: string, kind: MediaKind, spotifyId?: string): boolean;
   /** Adds an already-owned video to the collection of a playlist/channel download that skipped it. */
-  attachToCollection?(videoId: string, kind: MediaKind, ref: JobCollectionRef): Promise<unknown>;
+  attachToCollection?(videoId: string, kind: MediaKind, ref: JobCollectionRef, spotifyId?: string): Promise<unknown>;
   cleanupPartials(job: Job): Promise<void>;
   persist(jobs: Job[]): Promise<void>;
   getConcurrency(): number;
@@ -26,6 +27,13 @@ export interface QueueDeps {
 const STATUSES: JobStatus[] = ['queued', 'downloading', 'processing', 'paused', 'done', 'failed', 'canceled'];
 const ACTIVE: JobStatus[] = ['downloading', 'processing'];
 const PENDING: JobStatus[] = ['queued', 'downloading', 'processing', 'paused'];
+
+/** The same song or video: Spotify songs compare by Spotify id, everything else by video id. */
+function sameMedia(job: Job, input: NewJobInput): boolean {
+  if (job.kind !== input.kind) return false;
+  if (input.spotify && job.spotify?.id === input.spotify.id) return true;
+  return input.videoId !== '' && job.videoId === input.videoId;
+}
 
 export function sanitizeJobs(raw: unknown): Job[] {
   if (!Array.isArray(raw)) return [];
@@ -79,15 +87,19 @@ export class DownloadQueue {
   add(inputs: NewJobInput[]): AddJobsResult {
     const result: AddJobsResult = { added: 0, skipped: [] };
     for (const input of inputs) {
-      if (this.deps.isInLibrary(input.videoId, input.kind)) {
-        result.skipped.push({ videoId: input.videoId, reason: 'in-library' });
+      const spotifyId = input.spotify?.id;
+      const key = input.videoId || spotifyId || '';
+      if (this.deps.isInLibrary(input.videoId, input.kind, spotifyId)) {
+        result.skipped.push({ videoId: key, reason: 'in-library' });
         // Owned videos still belong to the new collection; without this it would be partial.
-        if (input.collection) void this.deps.attachToCollection?.(input.videoId, input.kind, input.collection).catch(() => undefined);
+        if (input.collection) {
+          void this.deps.attachToCollection?.(input.videoId, input.kind, input.collection, spotifyId).catch(() => undefined);
+        }
         continue;
       }
-      const duplicate = this.jobs.some((j) => j.videoId === input.videoId && j.kind === input.kind && PENDING.includes(j.status));
+      const duplicate = this.jobs.some((j) => sameMedia(j, input) && PENDING.includes(j.status));
       if (duplicate) {
-        result.skipped.push({ videoId: input.videoId, reason: 'in-queue' });
+        result.skipped.push({ videoId: key, reason: 'in-queue' });
         continue;
       }
       this.jobs.push({ ...input, id: randomUUID(), status: 'queued', progress: initialProgress(), createdAt: new Date().toISOString() });
@@ -182,12 +194,20 @@ export class DownloadQueue {
     let done: DoneInfo | undefined;
     job.status = 'downloading';
     delete job.error;
+    if (job.spotify && !job.videoId) job.progress = { ...job.progress, stage: 'match' };
     let handle: RunHandle;
     try {
       handle = this.deps.startDownload(job, (event) => {
         try {
           if (event.type === 'done') {
             done = event.info;
+            return;
+          }
+          if (event.type === 'matched') {
+            // A retry or resume downloads this video again without searching.
+            job.videoId = event.videoId;
+            job.url = event.url;
+            this.changed(true);
             return;
           }
           const progress = tracker.apply(event);

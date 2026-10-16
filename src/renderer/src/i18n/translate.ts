@@ -4,6 +4,7 @@ import { da } from './da';
 import { de } from './de';
 import { en } from './en';
 import { es } from './es';
+import { fi } from './fi';
 import { fr } from './fr';
 import { ga } from './ga';
 import { nb } from './nb';
@@ -27,6 +28,7 @@ export const DICTIONARIES: Record<Language, Record<MessageKey, string>> = {
   sv,
   nb,
   da,
+  fi,
   ga,
   az,
 };

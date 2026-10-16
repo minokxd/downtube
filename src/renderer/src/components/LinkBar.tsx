@@ -1,6 +1,6 @@
 import { Link } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
-import { isYoutubeUrl } from '@shared/youtube-url';
+import { isSupportedLink } from '@shared/spotify-url';
 import { useT } from '../i18n';
 import { useUi } from '../stores/ui';
 
@@ -14,7 +14,7 @@ export function LinkBar() {
     event.preventDefault();
     const url = value.trim();
     if (!url) return;
-    if (!isYoutubeUrl(url)) {
+    if (!isSupportedLink(url)) {
       setInvalid(true);
       return;
     }

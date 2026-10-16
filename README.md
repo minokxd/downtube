@@ -2,7 +2,7 @@
 
 <h1 align="center">downtube</h1>
 
-<p align="center">Download YouTube videos, music, playlists and channels, and watch them offline.</p>
+<p align="center">Download YouTube videos, music, playlists and channels, and Spotify songs, albums and playlists, and play them offline.</p>
 
 ![Downtube library](docs/screenshots/library.png)
 
@@ -11,15 +11,16 @@
 - **Videos** as MP4 in Best, 1080p, 720p or 480p.
 - **Music** as MP3 with cover art and tags.
 - **Playlists and channels** are listed first, so you pick what to download.
+- **Spotify links**: paste a song, album or playlist link and Downtube finds each song on YouTube Music, downloads it as MP3 and tags it with Spotify's title, artist, album and cover. No Spotify account needed.
 - **Size before you download**, next to your free disk space, with a warning when it will not fit.
 - **Your own playlists**: drag videos and songs onto them in the sidebar, reorder them, give them an emoji and play them back to back.
 - **Offline player** with subtitles, speed control, picture-in-picture and keyboard shortcuts.
 - **Chapters** from YouTube: marked on the seek bar, listed in the player so you can jump to one, and saved inside the file so other players see them too.
 - **Music bar** that keeps playing across pages, with a queue, shuffle, repeat and media keys.
 - **Resume** videos and songs where you left off.
-- **Clipboard detection**: copy a YouTube link and Downtube offers to download it.
+- **Clipboard detection**: copy a YouTube or Spotify link and Downtube offers to download it.
 - Dark and light themes.
-- **12 languages**: English, Turkish, German, Spanish, French, Portuguese (Brazil), Russian, Swedish, Norwegian, Danish, Irish and Azerbaijani. Downtube starts in your Windows language when it is one of these.
+- **13 languages**: English, Turkish, German, Spanish, French, Portuguese (Brazil), Russian, Swedish, Norwegian, Danish, Finnish, Irish and Azerbaijani. Downtube starts in your Windows language when it is one of these.
 
 ## Install
 
@@ -59,7 +60,7 @@ The translations other than English and Turkish were written with AI help. If yo
 
 ## Legal
 
-Downtube is for personal use. You are responsible for respecting copyright and the [YouTube Terms of Service](https://www.youtube.com/t/terms) for anything you download.
+Downtube is for personal use. You are responsible for respecting copyright, the [YouTube Terms of Service](https://www.youtube.com/t/terms) and the [Spotify Terms of Use](https://www.spotify.com/legal/end-user-agreement/) for anything you download. Downtube never downloads audio from Spotify: it reads the song list from Spotify's public pages and downloads the matching recordings from YouTube.
 
 ## License
 

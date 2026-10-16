@@ -1,4 +1,4 @@
-import { classifyUrl } from '@shared/youtube-url';
+import { canonicalLink } from '@shared/spotify-url';
 
 /** Electron's main-process clipboard reads are asynchronous, so a reader may return a promise. */
 export type ClipboardReader = () => string | Promise<string>;
@@ -42,10 +42,10 @@ export class ClipboardWatcher {
   private accept(text: string): void {
     if (text === this.last) return;
     this.last = text;
-    const info = classifyUrl(text);
-    if (info.kind === 'invalid') return;
-    if (this.notified.has(info.url)) return;
-    this.notified.add(info.url);
+    const link = canonicalLink(text);
+    if (!link) return;
+    if (this.notified.has(link)) return;
+    this.notified.add(link);
     this.onLink(text);
   }
 

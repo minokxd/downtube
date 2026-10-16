@@ -4,7 +4,14 @@ import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 
-export type FetchLike = (url: string, init?: { signal?: AbortSignal }) => Promise<Response>;
+export interface FetchInit {
+  signal?: AbortSignal;
+  method?: 'GET' | 'POST';
+  headers?: Record<string, string>;
+  body?: string;
+}
+
+export type FetchLike = (url: string, init?: FetchInit) => Promise<Response>;
 
 export async function downloadFile(
   fetchImpl: FetchLike,

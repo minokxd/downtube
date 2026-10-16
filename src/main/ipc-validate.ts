@@ -1,5 +1,7 @@
 import { isPlaylistEmoji } from '@shared/playlist-emojis';
 import { cleanPlaylistTitle } from '@shared/playlist-ops';
+import { cleanSpotifyTrack } from '@shared/spotify-track';
+import { isSupportedLink, spotifyUrl } from '@shared/spotify-url';
 import { QUALITIES, type NewJobInput, type PlaylistPatch, type Quality, type Settings } from '@shared/types';
 import { VIDEO_ID_RE, classifyUrl } from '@shared/youtube-url';
 
@@ -20,6 +22,11 @@ export function assertId(value: unknown): string {
 
 export function assertYoutubeUrl(value: unknown): string {
   return typeof value === 'string' && value.length <= 2048 && classifyUrl(value).kind !== 'invalid' ? value : fail('invalid YouTube URL');
+}
+
+/** A YouTube or Spotify link. */
+export function assertLink(value: unknown): string {
+  return typeof value === 'string' && value.length <= 2048 && isSupportedLink(value) ? value : fail('invalid link');
 }
 
 export function assertStart(value: unknown): number {
@@ -61,16 +68,27 @@ const isText = (value: unknown, max: number): value is string => typeof value ==
 function assertJobInput(value: unknown): NewJobInput {
   if (typeof value !== 'object' || value === null) return fail('invalid job');
   const v = value as Record<string, unknown>;
-  const videoId = typeof v.videoId === 'string' && VIDEO_ID_RE.test(v.videoId) ? v.videoId : fail('invalid video id');
-  // A job is exactly one video: a playlist or channel URL would download everything, and the
-  // library/queue bookkeeping is keyed by videoId. The canonical watch URL is what gets stored.
-  const info = classifyUrl(assertYoutubeUrl(v.url));
-  const url = info.kind === 'video' && info.videoId === videoId ? info.url : fail('url does not match video id');
-  const title = isText(v.title, 500) ? v.title.trim() || videoId : fail('invalid title');
+  const spotify = v.spotify === undefined ? undefined : (cleanSpotifyTrack(v.spotify) ?? fail('invalid Spotify song'));
+  let videoId: string;
+  let url: string;
+  if (spotify && v.videoId === '') {
+    // A Spotify song not matched yet: its Spotify link stands in for the watch URL until the queue finds the video.
+    videoId = '';
+    url = v.url === spotifyUrl('track', spotify.id) ? v.url : fail('url does not match the Spotify song');
+  } else {
+    videoId = typeof v.videoId === 'string' && VIDEO_ID_RE.test(v.videoId) ? v.videoId : fail('invalid video id');
+    // A job is exactly one video: a playlist or channel URL would download everything, and the
+    // library/queue bookkeeping is keyed by videoId. The canonical watch URL is what gets stored.
+    const info = classifyUrl(assertYoutubeUrl(v.url));
+    url = info.kind === 'video' && info.videoId === videoId ? info.url : fail('url does not match video id');
+  }
+  const title = isText(v.title, 500) ? v.title.trim() || videoId || (spotify?.title ?? '') : fail('invalid title');
   const kind = v.kind === 'video' || v.kind === 'audio' ? v.kind : fail('invalid kind');
+  if (spotify && kind !== 'audio') return fail('Spotify songs download as music');
   const quality = QUALITIES.includes(v.quality as Quality) ? (v.quality as Quality) : fail('invalid quality');
   const subtitles = assertBoolean(v.subtitles);
   const job: NewJobInput = { url, videoId, title, kind, quality, subtitles };
+  if (spotify) job.spotify = spotify;
   if (v.thumbnailUrl !== undefined) {
     const thumb = v.thumbnailUrl;
     job.thumbnailUrl = isText(thumb, 2048) && thumb.startsWith('https://') ? thumb : fail('invalid thumbnail');
@@ -80,7 +98,7 @@ function assertJobInput(value: unknown): NewJobInput {
     const c = v.collection as Record<string, unknown>;
     job.collection = {
       youtubeId: typeof c.youtubeId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(c.youtubeId) ? c.youtubeId : fail('invalid collection id'),
-      kind: c.kind === 'playlist' || c.kind === 'channel' ? c.kind : fail('invalid collection kind'),
+      kind: c.kind === 'playlist' || c.kind === 'channel' || c.kind === 'album' ? c.kind : fail('invalid collection kind'),
       title: isText(c.title, 500) ? c.title : fail('invalid collection title'),
       index: typeof c.index === 'number' && Number.isInteger(c.index) && c.index >= 0 ? c.index : fail('invalid collection index'),
     };

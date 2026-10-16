@@ -137,7 +137,7 @@ describe('DownloadQueue', () => {
     ]);
     expect(result.skipped).toEqual([{ videoId: 'aaaaaaaaaaa', reason: 'in-library' }]);
     expect(attachToCollection).toHaveBeenCalledTimes(1);
-    expect(attachToCollection).toHaveBeenCalledWith('aaaaaaaaaaa', 'video', collection);
+    expect(attachToCollection).toHaveBeenCalledWith('aaaaaaaaaaa', 'video', collection, undefined);
   });
 
   it('does not attach an owned video that has no collection, and survives a failing attach', async () => {
@@ -149,7 +149,7 @@ describe('DownloadQueue', () => {
     expect(() => queue.add([input('aaaaaaaaaaa'), input('bbbbbbbbbbb', { collection })])).not.toThrow();
     await tick();
     expect(attachToCollection).toHaveBeenCalledTimes(1);
-    expect(attachToCollection).toHaveBeenCalledWith('bbbbbbbbbbb', 'video', collection);
+    expect(attachToCollection).toHaveBeenCalledWith('bbbbbbbbbbb', 'video', collection, undefined);
   });
 
   it('allows the same video as a different kind', () => {
@@ -359,5 +359,64 @@ describe('DownloadQueue resilience', () => {
     } finally {
       errorSpy.mockRestore();
     }
+  });
+});
+
+describe('DownloadQueue with Spotify songs', () => {
+  const song = { id: '3XmwAZpIMNpTJy8faw3ajD', title: 'expectations', artist: 'Olivia Rodrigo', durationSec: 224 };
+  const spotifyInput = (overrides: Partial<NewJobInput> = {}): NewJobInput => ({
+    url: `https://open.spotify.com/track/${song.id}`,
+    videoId: '',
+    title: 'Olivia Rodrigo - expectations',
+    kind: 'audio',
+    quality: '1080',
+    subtitles: false,
+    spotify: song,
+    ...overrides,
+  });
+
+  it('starts an unmatched song in the match stage and keeps the match it reports', async () => {
+    const { queue, runs } = setup();
+    queue.add([spotifyInput()]);
+    expect(queue.list()[0]).toMatchObject({ status: 'downloading', progress: { stage: 'match' } });
+    runs[0]?.emit({ type: 'matched', videoId: '9KcnxA36s04', url: 'https://www.youtube.com/watch?v=9KcnxA36s04' });
+    expect(queue.list()[0]).toMatchObject({ videoId: '9KcnxA36s04', url: 'https://www.youtube.com/watch?v=9KcnxA36s04' });
+    runs[0]?.emit({ type: 'progress', status: 'downloading', downloadedBytes: 10, totalBytes: 100, formatId: '251' });
+    expect(queue.list()[0]?.progress.stage).toBe('download');
+  });
+
+  it('skips a song already in the queue or the library by its Spotify id', () => {
+    const isInLibrary = vi.fn((_videoId: string, _kind: string, spotifyId?: string) => spotifyId === 'BBBBBBBBBBBBBBBBBBBBBB');
+    const { queue } = setup({ isInLibrary });
+    const owned = { ...song, id: 'BBBBBBBBBBBBBBBBBBBBBB' };
+    const result = queue.add([spotifyInput(), spotifyInput(), spotifyInput({ spotify: owned, url: `https://open.spotify.com/track/${owned.id}` })]);
+    expect(result).toEqual({
+      added: 1,
+      skipped: [
+        { videoId: song.id, reason: 'in-queue' },
+        { videoId: owned.id, reason: 'in-library' },
+      ],
+    });
+    expect(isInLibrary).toHaveBeenCalledWith('', 'audio', song.id);
+  });
+
+  it('attaches an owned song to the album it was skipped for', () => {
+    const attachToCollection = vi.fn(async () => true);
+    const { queue } = setup({ isInLibrary: () => true, attachToCollection });
+    const collection = { youtubeId: 'spotify-4aawyAB9vmqN3uQ7FjRGTy', kind: 'album' as const, title: 'GUTS', index: 2 };
+    queue.add([spotifyInput({ collection })]);
+    expect(attachToCollection).toHaveBeenCalledWith('', 'audio', collection, song.id);
+  });
+
+  it('does not search again when a matched song is retried', async () => {
+    const { queue, runs } = setup();
+    queue.add([spotifyInput()]);
+    runs[0]?.emit({ type: 'matched', videoId: '9KcnxA36s04', url: 'https://www.youtube.com/watch?v=9KcnxA36s04' });
+    runs[0]?.finish({ code: 1, log: 'ERROR: Unable to download webpage: timed out' });
+    await tick();
+    const job = queue.list()[0];
+    expect(job?.status).toBe('failed');
+    queue.retry(job?.id ?? '');
+    expect(runs[1]?.job).toMatchObject({ videoId: '9KcnxA36s04', progress: { stage: 'download' } });
   });
 });

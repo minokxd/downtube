@@ -3,6 +3,7 @@ import { useMemo, type DragEvent } from 'react';
 import type { Collection, LibraryItem } from '@shared/types';
 import { Thumb } from '../../components/Thumb';
 import { useT } from '../../i18n';
+import { COLLECTION_LABEL } from '../../i18n/labels';
 import { coverUrl } from '../../lib/media-url';
 import { collectionItems } from './library-logic';
 import { MediaCard } from './MediaCard';
@@ -41,7 +42,7 @@ export function CollectionView({
       <header className="collection-header">
         <Thumb src={collection.thumbPath ? coverUrl(collection.id) : undefined} className="collection-cover" />
         <div className="collection-info">
-          <span className="badge">{collection.kind === 'channel' ? t('library.collection.channel') : t('library.collection.playlist')}</span>
+          <span className="badge">{t(COLLECTION_LABEL[collection.kind])}</span>
           <h1 className="page-title">{collection.title}</h1>
           <p className="muted">{t('library.items', { count: list.length })}</p>
           {playable && (

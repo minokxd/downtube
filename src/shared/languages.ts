@@ -10,6 +10,7 @@ export const LANGUAGES = [
   { code: 'sv', name: 'Svenska', locale: 'sv-SE' },
   { code: 'nb', name: 'Norsk bokmål', locale: 'nb-NO' },
   { code: 'da', name: 'Dansk', locale: 'da-DK' },
+  { code: 'fi', name: 'Suomi', locale: 'fi-FI' },
   { code: 'ga', name: 'Gaeilge', locale: 'ga-IE' },
   { code: 'az', name: 'Azərbaycan dili', locale: 'az-AZ' },
 ] as const;

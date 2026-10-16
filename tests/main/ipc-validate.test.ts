@@ -5,6 +5,7 @@ import {
   assertId,
   assertIdList,
   assertJobInputs,
+  assertLink,
   assertOptionalDuration,
   assertOptionalId,
   assertPlaylistEmoji,
@@ -162,5 +163,48 @@ describe('playlist assertions', () => {
     expect(assertOptionalId(null)).toBeNull();
     expect(assertOptionalId('abc')).toBe('abc');
     expect(() => assertOptionalId(undefined)).toThrow(IpcValidationError);
+  });
+});
+
+describe('Spotify jobs and links', () => {
+  const song = { id: '3XmwAZpIMNpTJy8faw3ajD', title: 'expectations', artist: 'Olivia Rodrigo', coverUrl: 'https://i.scdn.co/image/a' };
+  const spotifyJob = {
+    url: `https://open.spotify.com/track/${song.id}`,
+    videoId: '',
+    title: 'Olivia Rodrigo - expectations',
+    thumbnailUrl: 'https://i.scdn.co/image/a',
+    kind: 'audio',
+    quality: '1080',
+    subtitles: false,
+    spotify: song,
+    collection: { youtubeId: 'spotify-4aawyAB9vmqN3uQ7FjRGTy', kind: 'album', title: 'GUTS', index: 0 },
+  };
+
+  it('accepts an unmatched song by its Spotify link', () => {
+    expect(assertJobInputs([spotifyJob])).toEqual([spotifyJob]);
+  });
+
+  it('accepts a matched song by its YouTube video', () => {
+    const matched = { ...spotifyJob, videoId: 'jNQXAC9IVRw', url: 'https://youtu.be/jNQXAC9IVRw' };
+    expect(assertJobInputs([matched])[0]).toMatchObject({ videoId: 'jNQXAC9IVRw', url: 'https://www.youtube.com/watch?v=jNQXAC9IVRw', spotify: song });
+  });
+
+  it('rejects songs that do not add up', () => {
+    expect(() => assertJobInputs([{ ...spotifyJob, kind: 'video' }])).toThrow(IpcValidationError);
+    expect(() => assertJobInputs([{ ...spotifyJob, url: 'https://open.spotify.com/track/AAAAAAAAAAAAAAAAAAAAAA' }])).toThrow(IpcValidationError);
+    expect(() => assertJobInputs([{ ...spotifyJob, spotify: { ...song, id: 'nope' } }])).toThrow(IpcValidationError);
+    expect(() => assertJobInputs([{ ...spotifyJob, spotify: undefined }])).toThrow(IpcValidationError);
+  });
+
+  it('drops a cover from outside Spotify', () => {
+    const [cleaned] = assertJobInputs([{ ...spotifyJob, spotify: { ...song, coverUrl: 'https://evil.example/a.jpg' } }]);
+    expect(cleaned?.spotify).toEqual({ id: song.id, title: song.title, artist: song.artist });
+  });
+
+  it('accepts YouTube and Spotify links only', () => {
+    expect(assertLink('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M')).toBe('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M');
+    expect(assertLink('https://youtu.be/jNQXAC9IVRw')).toBe('https://youtu.be/jNQXAC9IVRw');
+    expect(() => assertLink('https://open.spotify.com/artist/37i9dQZF1DXcBWIGoYBM5M')).toThrow(IpcValidationError);
+    expect(() => assertLink(42)).toThrow(IpcValidationError);
   });
 });

@@ -69,6 +69,8 @@ export function useItemActions(): ItemActions {
               kind: item.kind,
               quality: settings?.defaultQuality ?? '1080',
               subtitles: item.kind === 'video' && (settings?.subtitles.enabled ?? false),
+              // The YouTube match is kept, so a Spotify song downloads the same recording with Spotify's tags.
+              ...(item.spotify && { spotify: item.spotify }),
             },
           ])
           .then((result) => {

@@ -126,6 +126,50 @@
   text-overflow: ellipsis;
 }
 
+.add-media.is-song {
+  grid-template-columns: 112px minmax(0, 1fr);
+}
+
+.add-media.is-song .add-thumb {
+  aspect-ratio: 1;
+  border-radius: 8px;
+}
+
+.add-media.is-song .add-note {
+  margin-top: 8px;
+}
+
+.add-entry.is-song {
+  grid-template-columns: 20px 40px minmax(0, 1fr) auto;
+  padding-block: 6px;
+}
+
+.add-entry.is-song .add-entry-thumb {
+  width: 40px;
+  aspect-ratio: 1;
+  border-radius: 4px;
+}
+
+.add-entry-number {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.add-entry-text {
+  display: grid;
+  min-width: 0;
+}
+
+.add-entry-sub {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .add-entry-meta {
   color: var(--text-muted);
   font-size: 12px;

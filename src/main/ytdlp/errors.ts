@@ -12,6 +12,7 @@ export class YtdlpError extends Error {
 
 // Order matters: the first match wins.
 const PATTERNS: ReadonlyArray<readonly [RegExp, ErrorCode]> = [
+  [/\[spotify\] no match/i, 'NO_MATCH'],
   [/private video|this video is private/i, 'PRIVATE'],
   [/confirm your age|age[- ]restricted|inappropriate for some users/i, 'AGE_RESTRICTED'],
   [/confirm you(?:'|’)?re not a bot|confirm you are not a bot/i, 'BOT_CHECK'],

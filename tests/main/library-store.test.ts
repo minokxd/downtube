@@ -373,3 +373,41 @@ describe('chapters', () => {
     expect(data.items[1]).not.toHaveProperty('chapters');
   });
 });
+
+describe('Spotify songs', () => {
+  const song = { id: '3XmwAZpIMNpTJy8faw3ajD', title: 'expectations', artist: 'Olivia Rodrigo, Chappell Roan', album: 'GUTS' };
+  const audio = (overrides: Partial<AddFromDownloadInput> = {}, id = '9KcnxA36s04') =>
+    input({ kind: 'audio', done: { id, title: 'expectations (Official Audio)', channel: 'Olivia Rodrigo', filepath: join(dir, `${id}.mp3`) }, ...overrides }, id);
+
+  it("uses Spotify's title and artist and finds the song by its Spotify id", async () => {
+    const store = await LibraryStore.open(file);
+    const item = await store.addFromDownload(audio({ spotify: song }));
+    expect(item).toMatchObject({ videoId: '9KcnxA36s04', title: 'expectations', artist: 'Olivia Rodrigo, Chappell Roan', spotify: song });
+    expect(store.hasPlayable('', 'audio', song.id)).toBe(true);
+    expect(store.hasPlayable('', 'audio', 'AAAAAAAAAAAAAAAAAAAAAA')).toBe(false);
+    expect(store.findBySpotify(song.id)?.id).toBe(item.id);
+  });
+
+  it('replaces the same song even when it matched another video', async () => {
+    const store = await LibraryStore.open(file);
+    const first = await store.addFromDownload(audio({ spotify: song }));
+    const second = await store.addFromDownload(audio({ spotify: song }, 'ZYUql_ZPHrc'));
+    expect(second.id).toBe(first.id);
+    expect(store.snapshot().items).toHaveLength(1);
+    expect(store.snapshot().items[0]?.videoId).toBe('ZYUql_ZPHrc');
+  });
+
+  it('adds an owned song to an album collection', async () => {
+    const store = await LibraryStore.open(file);
+    const item = await store.addFromDownload(audio({ spotify: song }));
+    const ref = { youtubeId: 'spotify-4aawyAB9vmqN3uQ7FjRGTy', kind: 'album' as const, title: 'GUTS', index: 1 };
+    expect(await store.attachExisting('', 'audio', ref, song.id)).toBe(true);
+    expect(store.snapshot().collections).toMatchObject([{ kind: 'album', title: 'GUTS', itemIds: [item.id] }]);
+  });
+
+  it('drops broken Spotify data when loading', () => {
+    const data = sanitizeLibrary({ items: [{ ...validItem(), spotify: { id: 'bad' } }, { ...validItem(), id: 'ok2', spotify: song }] });
+    expect(data.items[0]?.spotify).toBeUndefined();
+    expect(data.items[1]?.spotify).toEqual(song);
+  });
+});

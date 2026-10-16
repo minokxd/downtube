@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { LANGUAGES, isLanguage, languageFromLocale, localeOf, subtitleLangsFor } from '../../src/shared/languages';
 
 describe('LANGUAGES', () => {
-  it('lists twelve languages with unique codes and valid locales', () => {
-    expect(LANGUAGES).toHaveLength(12);
-    expect(new Set(LANGUAGES.map((l) => l.code)).size).toBe(12);
+  it('lists thirteen languages with unique codes and valid locales', () => {
+    expect(LANGUAGES).toHaveLength(13);
+    expect(new Set(LANGUAGES.map((l) => l.code)).size).toBe(13);
     for (const language of LANGUAGES) expect(Intl.getCanonicalLocales(language.locale)).toHaveLength(1);
   });
 
@@ -32,6 +32,7 @@ describe('languageFromLocale', () => {
     ['nn-NO', 'nb'],
     ['no', 'nb'],
     ['da', 'da'],
+    ['fi-FI', 'fi'],
     ['ga-IE', 'ga'],
     ['az-Latn-AZ', 'az'],
     ['ja-JP', 'en'],
@@ -55,5 +56,6 @@ describe('subtitleLangsFor', () => {
     expect(subtitleLangsFor('tr')).toEqual(['tr', 'en']);
     expect(subtitleLangsFor('pt-BR')).toEqual(['pt', 'en']);
     expect(subtitleLangsFor('nb')).toEqual(['no', 'en']);
+    expect(subtitleLangsFor('fi')).toEqual(['fi', 'en']);
   });
 });

@@ -4,6 +4,7 @@ import { LibraryThumb } from '../../components/LibraryThumb';
 import { PlaylistIcon } from '../../components/PlaylistIcon';
 import { Thumb } from '../../components/Thumb';
 import { useT } from '../../i18n';
+import { COLLECTION_LABEL } from '../../i18n/labels';
 import { coverUrl } from '../../lib/media-url';
 import { coverItem } from '../../lib/playlists';
 
@@ -75,7 +76,7 @@ export function CollectionGrid({
                   <div className="card-text">
                     <div className="card-title">{collection.title}</div>
                     <div className="card-meta">
-                      {collection.kind === 'channel' ? t('library.collection.channel') : t('library.collection.playlist')}
+                      {t(COLLECTION_LABEL[collection.kind])}
                     </div>
                   </div>
                 </div>

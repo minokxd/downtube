@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import { cleanChapters } from '@shared/chapters';
 import { isPlaylistEmoji } from '@shared/playlist-emojis';
 import { addIds, cleanPlaylistTitle, moveIds, removeIds } from '@shared/playlist-ops';
+import { cleanSpotifyTrack } from '@shared/spotify-track';
 import type {
   Collection,
   JobCollectionRef,
@@ -12,6 +13,7 @@ import type {
   Playlist,
   PlaylistAddResult,
   PlaylistPatch,
+  SpotifyTrack,
   SubtitleTrack,
 } from '@shared/types';
 import { JsonFile, type RecoveryState } from '../json-store';
@@ -32,6 +34,7 @@ export interface AddFromDownloadInput {
   thumbPath?: string;
   subtitles: SubtitleTrack[];
   sizeBytes: number;
+  spotify?: SpotifyTrack;
 }
 
 const COMPLETE_RATIO = 0.95;
@@ -60,7 +63,7 @@ function isCollection(value: unknown): value is Collection {
   return (
     typeof c.id === 'string' &&
     typeof c.youtubeId === 'string' &&
-    (c.kind === 'playlist' || c.kind === 'channel') &&
+    (c.kind === 'playlist' || c.kind === 'channel' || c.kind === 'album') &&
     typeof c.title === 'string' &&
     Array.isArray(c.itemIds) &&
     typeof c.positions === 'object' &&
@@ -73,6 +76,13 @@ function withCleanChapters(item: LibraryItem): LibraryItem {
   const { chapters, ...rest } = item;
   const clean = cleanChapters(chapters);
   return clean.length > 0 ? { ...rest, chapters: clean } : rest;
+}
+
+function withCleanSpotify(item: LibraryItem): LibraryItem {
+  if (item.spotify === undefined) return item;
+  const { spotify, ...rest } = item;
+  const clean = cleanSpotifyTrack(spotify);
+  return clean ? { ...rest, spotify: clean } : rest;
 }
 
 function sanitizePlaylist(value: unknown, itemIds: ReadonlySet<string>): Playlist | null {
@@ -106,7 +116,7 @@ const errorMessage = (err: unknown): string => (err instanceof Error ? err.messa
 export function sanitizeLibrary(raw: unknown): LibraryData {
   if (typeof raw !== 'object' || raw === null) return emptyData();
   const r = raw as { items?: unknown; collections?: unknown; playlists?: unknown };
-  const items = Array.isArray(r.items) ? r.items.filter(isLibraryItem).map(withCleanChapters) : [];
+  const items = Array.isArray(r.items) ? r.items.filter(isLibraryItem).map(withCleanChapters).map(withCleanSpotify) : [];
   const ids = new Set(items.map((item) => item.id));
   const collections = Array.isArray(r.collections)
     ? r.collections.filter(isCollection).map((c) => ({ ...c, itemIds: c.itemIds.filter((id) => ids.has(id)) }))
@@ -149,22 +159,31 @@ export class LibraryStore {
     return this.data.items.find((item) => item.videoId === videoId && item.kind === kind);
   }
 
-  hasPlayable(videoId: string, kind: MediaKind): boolean {
-    const item = this.findByVideo(videoId, kind);
+  findBySpotify(spotifyId: string): LibraryItem | undefined {
+    return this.data.items.find((item) => item.kind === 'audio' && item.spotify?.id === spotifyId);
+  }
+
+  /** A Spotify song is found by its Spotify id, since its YouTube match is only known once it downloads. */
+  private findOwned(videoId: string, kind: MediaKind, spotifyId?: string): LibraryItem | undefined {
+    return (spotifyId ? this.findBySpotify(spotifyId) : undefined) ?? (videoId ? this.findByVideo(videoId, kind) : undefined);
+  }
+
+  hasPlayable(videoId: string, kind: MediaKind, spotifyId?: string): boolean {
+    const item = this.findOwned(videoId, kind, spotifyId);
     return item !== undefined && !item.missing;
   }
 
   async addFromDownload(input: AddFromDownloadInput): Promise<LibraryItem> {
     const now = new Date().toISOString();
-    const existing = this.findByVideo(input.done.id, input.kind);
+    const existing = this.findOwned(input.done.id, input.kind, input.spotify?.id);
     const item: LibraryItem = {
       id: existing?.id ?? randomUUID(),
       videoId: input.done.id,
       kind: input.kind,
-      title: input.done.title,
+      title: input.spotify?.title ?? input.done.title,
       channel: input.done.channel ?? '',
       channelId: input.done.channelId,
-      artist: input.kind === 'audio' ? (input.done.artist ?? input.done.channel) : undefined,
+      artist: input.kind === 'audio' ? (input.spotify?.artist || input.done.artist || input.done.channel) : undefined,
       durationSec: input.done.durationSec ?? 0,
       filePath: input.done.filepath,
       thumbPath: input.thumbPath,
@@ -178,6 +197,7 @@ export class LibraryStore {
     };
     // A new download replaces the chapters too, so a video whose chapters were removed loses them.
     if (input.done.chapters && input.done.chapters.length > 0) item.chapters = input.done.chapters;
+    if (input.spotify) item.spotify = input.spotify;
     if (existing) this.data.items[this.data.items.indexOf(existing)] = item;
     else this.data.items.push(item);
     if (input.collection) this.attachToCollection(item, input.collection, now);
@@ -186,8 +206,8 @@ export class LibraryStore {
   }
 
   /** Adds a video that is already in the library to the collection of a playlist/channel download. */
-  async attachExisting(videoId: string, kind: MediaKind, ref: JobCollectionRef): Promise<boolean> {
-    const item = this.findByVideo(videoId, kind);
+  async attachExisting(videoId: string, kind: MediaKind, ref: JobCollectionRef, spotifyId?: string): Promise<boolean> {
+    const item = this.findOwned(videoId, kind, spotifyId);
     if (!item || item.missing) return false;
     this.attachToCollection(item, ref, new Date().toISOString());
     await this.commit();
@@ -250,7 +270,7 @@ export class LibraryStore {
         collection.thumbPath = collection.itemIds.map((x) => this.get(x)?.thumbPath).find((p) => p !== undefined);
       }
     }
-    // The user's playlists stay even when this empties them; only YouTube collections go away when empty.
+    // The user's playlists stay even when this empties them; only downloaded collections go away when empty.
     for (const playlist of this.data.playlists) playlist.itemIds = playlist.itemIds.filter((x) => x !== id);
     this.data.collections = this.data.collections.filter((c) => c.itemIds.length > 0);
     await this.commit();

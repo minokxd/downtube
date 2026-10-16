@@ -1,8 +1,8 @@
 {
   "name": "downtube",
   "productName": "Downtube",
-  "version": "1.2.0",
-  "description": "Download YouTube videos, music, playlists and channels and watch them offline.",
+  "version": "1.3.0",
+  "description": "Download YouTube videos, music, playlists and channels, and Spotify songs, albums and playlists, and play them offline.",
   "main": "./out/main/index.js",
   "author": "minok",
   "license": "MIT",

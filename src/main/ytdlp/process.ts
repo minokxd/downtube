@@ -36,6 +36,37 @@ export function killTree(child: ChildProcess): void {
   }
 }
 
+/** A finished run that never started a process, for a step that fails before yt-dlp runs. */
+export const failedRun = (log: string): RunHandle => ({
+  done: Promise.resolve({ code: 1, canceled: false, stdout: '', log }),
+  cancel: () => undefined,
+});
+
+/**
+ * Runs `first`, then whatever `then` starts from its result, as one cancelable run.
+ * A cancel between the two steps stops the second one from starting.
+ */
+export function chainRuns(first: RunHandle, then: (result: RunResult) => RunHandle): RunHandle {
+  let current = first;
+  let canceled = false;
+  const done = first.done.then((result) => {
+    if (canceled || result.canceled) return { ...result, canceled: true };
+    try {
+      current = then(result);
+    } catch (err) {
+      return { code: 1, canceled: false, stdout: '', log: err instanceof Error ? err.message : String(err) };
+    }
+    return current.done;
+  });
+  return {
+    done,
+    cancel: () => {
+      canceled = true;
+      current.cancel();
+    },
+  };
+}
+
 export const runProcess: RunFn = (exe, args, options = {}) => {
   const limit = options.logLimit ?? 200;
   const log: string[] = [];

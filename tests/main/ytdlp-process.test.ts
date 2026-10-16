@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { runProcess, type RunOptions, type StreamName } from '../../src/main/ytdlp/process';
+import { chainRuns, failedRun, runProcess, type RunHandle, type RunOptions, type RunResult, type StreamName } from '../../src/main/ytdlp/process';
 
 const FAKE = resolve('tests/fixtures/fake-proc.cjs');
 const run = (mode: string, options: RunOptions = {}) => runProcess(process.execPath, [FAKE, mode], options);
@@ -69,5 +69,66 @@ describe('runProcess', () => {
     expect(result.stdout).toBe('');
     expect(result.log).toContain('spawn error');
     expect(() => handle.cancel()).not.toThrow();
+  });
+});
+
+describe('chainRuns', () => {
+  function manual(): RunHandle & { finish: (result: Partial<RunResult>) => void; canceled: boolean } {
+    let resolve!: (result: RunResult) => void;
+    const handle = {
+      done: new Promise<RunResult>((r) => (resolve = r)),
+      canceled: false,
+      finish: (result: Partial<RunResult>) => resolve({ code: 0, canceled: false, stdout: '', log: '', ...result }),
+      cancel: () => {
+        handle.canceled = true;
+        resolve({ code: null, canceled: true, stdout: '', log: '' });
+      },
+    };
+    return handle;
+  }
+
+  it('runs the second step with the first result', async () => {
+    const first = manual();
+    const second = manual();
+    const chained = chainRuns(first, (result) => {
+      expect(result.stdout).toBe('found');
+      return second;
+    });
+    first.finish({ stdout: 'found' });
+    await Promise.resolve();
+    second.finish({ code: 0, log: 'downloaded' });
+    await expect(chained.done).resolves.toMatchObject({ code: 0, log: 'downloaded' });
+  });
+
+  it('cancels whichever step is running', async () => {
+    const first = manual();
+    const second = manual();
+    const chained = chainRuns(first, () => second);
+    first.finish({});
+    await new Promise((r) => setTimeout(r, 0));
+    chained.cancel();
+    expect(second.canceled).toBe(true);
+    await expect(chained.done).resolves.toMatchObject({ canceled: true });
+  });
+
+  it('does not start the second step after a cancel', async () => {
+    const first = manual();
+    let started = false;
+    const chained = chainRuns(first, () => {
+      started = true;
+      return failedRun('never');
+    });
+    chained.cancel();
+    await expect(chained.done).resolves.toMatchObject({ canceled: true });
+    expect(started).toBe(false);
+  });
+
+  it('turns a throwing step into a failed run', async () => {
+    const first = manual();
+    const chained = chainRuns(first, () => {
+      throw new Error('engine missing');
+    });
+    first.finish({});
+    await expect(chained.done).resolves.toEqual({ code: 1, canceled: false, stdout: '', log: 'engine missing' });
   });
 });

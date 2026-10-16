@@ -1,6 +1,7 @@
-import type { ProbeResult } from '@shared/types';
+import type { ProbeResult, SpotifyTrack } from '@shared/types';
 import { classifyUrl } from '@shared/youtube-url';
-import { PROGRESS_PREFIX, buildDownloadArgs, buildProbeArgs, type DownloadArgsInput, type EnginePaths } from './args';
+import { musicSearchUrl, videoSearchUrl } from '../spotify/match';
+import { PROGRESS_PREFIX, baseArgs, buildDownloadArgs, buildProbeArgs, type DownloadArgsInput, type EnginePaths } from './args';
 import { YtdlpError, mapError } from './errors';
 import { parseLine, type YtdlpEvent } from './output';
 import { normalizeList, normalizeVideo } from './probe-normalize';
@@ -46,6 +47,13 @@ export class YtdlpClient {
     }
     if (info.kind === 'video') return { type: 'video', video: normalizeVideo(json, info.listId) };
     return { type: 'list', list: normalizeList(json, info.kind, info.url, start, PAGE_SIZE) };
+  }
+
+  /** Searches YouTube Music's songs and plain YouTube for a Spotify song; read the output with parseSearch. */
+  searchSong(track: SpotifyTrack): RunHandle {
+    const paths = this.paths();
+    const args = [...baseArgs(paths), '-J', '--flat-playlist', '-I', '1:5', '--', musicSearchUrl(track), videoSearchUrl(track)];
+    return this.run(paths.ytdlp, args, { collectStdout: true });
   }
 
   download(input: DownloadArgsInput, onEvent: (event: YtdlpEvent) => void): RunHandle {

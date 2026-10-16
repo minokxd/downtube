@@ -13,6 +13,7 @@ describe('mapError', () => {
     ['ERROR: Unable to download webpage: <urlopen error [Errno 11001] getaddrinfo failed>', 'NETWORK'],
     ['ERROR: unable to write data: [Errno 28] No space left on device', 'DISK_FULL'],
     ['ERROR: Postprocessing: [WinError 112] Diskte yeterli alan yok', 'DISK_FULL'],
+    ['ERROR: [spotify] No match on YouTube for "Tarkan - Şımarık"', 'NO_MATCH'],
     ['ERROR: something nobody has seen before', 'UNKNOWN'],
   ])('maps %j to %s', (log, code) => {
     expect(mapError(log)).toBe(code);

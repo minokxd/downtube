@@ -8,6 +8,7 @@ import {
   assertId,
   assertIdList,
   assertJobInputs,
+  assertLink,
   assertOptionalDuration,
   assertOptionalId,
   assertPlaylistEmoji,
@@ -17,11 +18,11 @@ import {
   assertSettingsPatch,
   assertStart,
   assertTheme,
-  assertYoutubeUrl,
 } from './ipc-validate';
 import type { Services } from './services';
 import { runYtdlpUpdate } from './updater';
 import { applyTitleBarTheme } from './window';
+import { classifySpotifyUrl } from '@shared/spotify-url';
 import { YtdlpError } from './ytdlp/errors';
 
 export function registerIpc(services: Services, getWindow: () => BrowserWindow | null): void {
@@ -55,7 +56,10 @@ export function registerIpc(services: Services, getWindow: () => BrowserWindow |
 
   ipcMain.handle(IPC.probe, async (_event, url: unknown, start: unknown): Promise<ProbeResponse> => {
     try {
-      return { ok: true, result: await services.ytdlp.probe(assertYoutubeUrl(url), assertStart(start)) };
+      const link = assertLink(url);
+      const from = assertStart(start);
+      if (classifySpotifyUrl(link)) return { ok: true, result: { type: 'spotify', list: await services.spotify.probe(link, from) } };
+      return { ok: true, result: await services.ytdlp.probe(link, from) };
     } catch (err) {
       if (err instanceof YtdlpError) return { ok: false, code: err.code, log: err.log };
       if (err instanceof IpcValidationError) return { ok: false, code: 'INVALID_URL' };

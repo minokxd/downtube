@@ -1,11 +1,12 @@
 import type { Language } from './languages';
+import type { SpotifyKind } from './spotify-url';
 
 export type MediaKind = 'video' | 'audio';
 export type Quality = 'best' | '1080' | '720' | '480';
 export const QUALITIES: readonly Quality[] = ['best', '1080', '720', '480'];
 
 export type ThemeSetting = 'system' | 'dark' | 'light';
-export type { Language };
+export type { Language, SpotifyKind };
 
 export type ErrorCode =
   | 'INVALID_URL'
@@ -17,6 +18,7 @@ export type ErrorCode =
   | 'NETWORK'
   | 'DISK_FULL'
   | 'ENGINE_MISSING'
+  | 'NO_MATCH'
   | 'UNKNOWN';
 
 export interface SubtitleTrack {
@@ -36,6 +38,19 @@ export interface PlaybackProgress {
   positionSec: number;
   updatedAt: string;
   completed: boolean;
+}
+
+/** A Spotify song. Its audio comes from the matching recording on YouTube; the tags come from Spotify. */
+export interface SpotifyTrack {
+  id: string;
+  title: string;
+  /** All artists, comma separated, as Spotify shows them. */
+  artist: string;
+  album?: string;
+  albumArtist?: string;
+  durationSec?: number;
+  coverUrl?: string;
+  trackNumber?: number;
 }
 
 export interface LibraryItem {
@@ -59,12 +74,15 @@ export interface LibraryItem {
   progress: PlaybackProgress;
   playCount: number;
   missing?: boolean;
+  /** Set when the item was downloaded from a Spotify link. */
+  spotify?: SpotifyTrack;
 }
 
-export type CollectionKind = 'playlist' | 'channel';
+export type CollectionKind = 'playlist' | 'channel' | 'album';
 
 export interface Collection {
   id: string;
+  /** The YouTube playlist or channel id, or `spotify-<id>` for a Spotify playlist or album. */
   youtubeId: string;
   kind: CollectionKind;
   title: string;
@@ -101,7 +119,7 @@ export interface PlaylistPatch {
 }
 
 export type JobStatus = 'queued' | 'downloading' | 'processing' | 'paused' | 'done' | 'failed' | 'canceled';
-export type JobStage = 'download' | 'merge' | 'convert' | 'thumbnail' | 'subtitles';
+export type JobStage = 'match' | 'download' | 'merge' | 'convert' | 'thumbnail' | 'subtitles';
 
 export interface JobProgress {
   percent: number;
@@ -121,6 +139,7 @@ export interface JobCollectionRef {
 
 export interface NewJobInput {
   url: string;
+  /** Empty for a Spotify song until its YouTube match is found; `url` is then the Spotify link. */
   videoId: string;
   title: string;
   thumbnailUrl?: string;
@@ -128,6 +147,7 @@ export interface NewJobInput {
   quality: Quality;
   subtitles: boolean;
   collection?: JobCollectionRef;
+  spotify?: SpotifyTrack;
 }
 
 export interface Job extends NewJobInput {
@@ -174,7 +194,26 @@ export interface ProbeList {
   sourceUrl: string;
 }
 
-export type ProbeResult = { type: 'video'; video: ProbeVideo } | { type: 'list'; list: ProbeList };
+export interface SpotifyList {
+  kind: SpotifyKind;
+  id: string;
+  title: string;
+  /** The artist of an album or song, or the owner of a playlist. */
+  owner?: string;
+  coverUrl?: string;
+  totalCount?: number;
+  tracks: SpotifyTrack[];
+  hasMore: boolean;
+  nextStart: number;
+  /** Spotify only shared the first page of a longer playlist. */
+  partial?: boolean;
+  sourceUrl: string;
+}
+
+export type ProbeResult =
+  | { type: 'video'; video: ProbeVideo }
+  | { type: 'list'; list: ProbeList }
+  | { type: 'spotify'; list: SpotifyList };
 export type ProbeResponse = { ok: true; result: ProbeResult } | { ok: false; code: ErrorCode; log?: string };
 
 export interface SubtitleSettings {

@@ -1,5 +1,16 @@
 import { estimateBytes } from '@shared/size-estimate';
-import type { LibraryItem, MediaKind, NewJobInput, ProbeEntry, ProbeList, ProbeVideo, Quality } from '@shared/types';
+import { spotifyUrl } from '@shared/spotify-url';
+import type {
+  LibraryItem,
+  MediaKind,
+  NewJobInput,
+  ProbeEntry,
+  ProbeList,
+  ProbeVideo,
+  Quality,
+  SpotifyList,
+  SpotifyTrack,
+} from '@shared/types';
 
 export interface DownloadChoice {
   kind: MediaKind;
@@ -16,7 +27,7 @@ export interface SizeInfo {
 }
 
 /** Duration-based total for playlist/channel entries; undefined when no duration is known. */
-export function listSize(entries: readonly ProbeEntry[], kind: MediaKind, quality: Quality): SizeInfo | undefined {
+export function listSize(entries: readonly { durationSec?: number }[], kind: MediaKind, quality: Quality): SizeInfo | undefined {
   let bytes = 0;
   let counted = 0;
   for (const entry of entries) {
@@ -99,3 +110,47 @@ export function mergeEntries(current: readonly ProbeEntry[], incoming: readonly 
 }
 
 export const playlistUrl = (listId: string): string => `https://www.youtube.com/playlist?list=${listId}`;
+
+/** Spotify ids of the songs already in the library from a Spotify link. */
+export function ownedSpotifyIds(items: readonly LibraryItem[]): Set<string> {
+  return new Set(items.flatMap((item) => (item.kind === 'audio' && !item.missing && item.spotify ? [item.spotify.id] : [])));
+}
+
+export const songLabel = (track: SpotifyTrack): string => (track.artist ? `${track.artist} - ${track.title}` : track.title);
+
+/**
+ * One MP3 job per chosen song, matched to YouTube when it starts. Albums and playlists also become a
+ * collection; like listSubmitIds, `selected` should include the owned songs so they join it too.
+ */
+export function spotifyJobs(
+  list: SpotifyList,
+  tracks: readonly SpotifyTrack[],
+  selected: ReadonlySet<string>,
+  quality: Quality,
+): NewJobInput[] {
+  const jobs: NewJobInput[] = [];
+  tracks.forEach((track, index) => {
+    if (!selected.has(track.id)) return;
+    const job: NewJobInput = {
+      url: spotifyUrl('track', track.id),
+      videoId: '',
+      title: songLabel(track),
+      kind: 'audio',
+      quality,
+      subtitles: false,
+      spotify: track,
+    };
+    const thumbnailUrl = track.coverUrl ?? list.coverUrl;
+    if (thumbnailUrl) job.thumbnailUrl = thumbnailUrl;
+    if (list.kind !== 'track') {
+      job.collection = { youtubeId: `spotify-${list.id}`, kind: list.kind === 'album' ? 'album' : 'playlist', title: list.title, index };
+    }
+    jobs.push(job);
+  });
+  return jobs;
+}
+
+export function mergeTracks(current: readonly SpotifyTrack[], incoming: readonly SpotifyTrack[]): SpotifyTrack[] {
+  const seen = new Set(current.map((track) => track.id));
+  return [...current, ...incoming.filter((track) => !seen.has(track.id) && seen.add(track.id))];
+}

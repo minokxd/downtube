@@ -27,6 +27,8 @@ export type YtdlpEvent =
     }
   | { type: 'postprocess'; name: string; status: string }
   | { type: 'done'; info: DoneInfo }
+  /** A Spotify song was matched to this YouTube video; the download starts next. */
+  | { type: 'matched'; videoId: string; url: string }
   | { type: 'log'; line: string };
 
 function toNumber(value: string | undefined): number | undefined {

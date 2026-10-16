@@ -1,4 +1,4 @@
-import type { ErrorCode, InstallPhase, JobStage, JobStatus, Quality } from '@shared/types';
+import type { CollectionKind, ErrorCode, InstallPhase, JobStage, JobStatus, Quality } from '@shared/types';
 import type { MessageKey } from './tr';
 
 export const QUALITY_LABEL: Record<Quality, MessageKey> = {
@@ -18,6 +18,7 @@ export const ERROR_LABEL: Record<ErrorCode, MessageKey> = {
   NETWORK: 'error.NETWORK',
   DISK_FULL: 'error.DISK_FULL',
   ENGINE_MISSING: 'error.ENGINE_MISSING',
+  NO_MATCH: 'error.NO_MATCH',
   UNKNOWN: 'error.UNKNOWN',
 };
 
@@ -32,11 +33,18 @@ export const STATUS_LABEL: Record<JobStatus, MessageKey> = {
 };
 
 export const STAGE_LABEL: Record<JobStage, MessageKey> = {
+  match: 'downloads.stage.match',
   download: 'downloads.stage.download',
   merge: 'downloads.stage.merge',
   convert: 'downloads.stage.convert',
   thumbnail: 'downloads.stage.thumbnail',
   subtitles: 'downloads.stage.subtitles',
+};
+
+export const COLLECTION_LABEL: Record<CollectionKind, MessageKey> = {
+  playlist: 'library.collection.playlist',
+  channel: 'library.collection.channel',
+  album: 'library.collection.album',
 };
 
 export const PHASE_LABEL: Record<InstallPhase, MessageKey> = {

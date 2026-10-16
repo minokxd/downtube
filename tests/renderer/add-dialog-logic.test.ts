@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { LibraryItem, ProbeEntry, ProbeList, ProbeVideo } from '@shared/types';
+import type { LibraryItem, ProbeEntry, ProbeList, ProbeVideo, SpotifyList, SpotifyTrack } from '@shared/types';
 import { estimateBytes } from '@shared/size-estimate';
 import {
+  mergeTracks,
+  ownedSpotifyIds,
+  spotifyJobs,
   inLibraryIds,
   listJobs,
   listSize,
@@ -158,5 +161,61 @@ describe('listSize', () => {
   it('has nothing to show when no duration is known', () => {
     expect(listSize([timed('a')], 'video', '1080')).toBeUndefined();
     expect(listSize([], 'video', '1080')).toBeUndefined();
+  });
+});
+
+describe('Spotify songs', () => {
+  const track = (n: number, extra: Partial<SpotifyTrack> = {}): SpotifyTrack => ({
+    id: `${'A'.repeat(21)}${n}`,
+    title: `Song ${n}`,
+    artist: 'Band',
+    ...extra,
+  });
+  const album: SpotifyList = {
+    kind: 'album',
+    id: '4aawyAB9vmqN3uQ7FjRGTy',
+    title: 'GUTS',
+    coverUrl: 'https://i.scdn.co/image/album',
+    tracks: [track(1), track(2, { coverUrl: 'https://i.scdn.co/image/2' })],
+    hasMore: false,
+    nextStart: 3,
+    sourceUrl: 'https://open.spotify.com/album/4aawyAB9vmqN3uQ7FjRGTy',
+  };
+
+  it('makes one unmatched MP3 job per chosen song, in an album collection', () => {
+    const jobs = spotifyJobs(album, album.tracks, new Set([track(2).id]), '720');
+    expect(jobs).toEqual([
+      {
+        url: `https://open.spotify.com/track/${track(2).id}`,
+        videoId: '',
+        title: 'Band - Song 2',
+        kind: 'audio',
+        quality: '720',
+        subtitles: false,
+        spotify: album.tracks[1],
+        thumbnailUrl: 'https://i.scdn.co/image/2',
+        collection: { youtubeId: 'spotify-4aawyAB9vmqN3uQ7FjRGTy', kind: 'album', title: 'GUTS', index: 1 },
+      },
+    ]);
+  });
+
+  it('gives a single song no collection and the list cover', () => {
+    const single: SpotifyList = { ...album, kind: 'track', tracks: [track(1)] };
+    const [job] = spotifyJobs(single, single.tracks, new Set([track(1).id]), 'best');
+    expect(job?.collection).toBeUndefined();
+    expect(job?.thumbnailUrl).toBe('https://i.scdn.co/image/album');
+  });
+
+  it('finds owned songs by Spotify id', () => {
+    const items = [
+      { kind: 'audio', spotify: track(1) },
+      { kind: 'audio', spotify: track(2), missing: true },
+      { kind: 'audio' },
+    ] as LibraryItem[];
+    expect([...ownedSpotifyIds(items)]).toEqual([track(1).id]);
+  });
+
+  it('merges pages without duplicates', () => {
+    expect(mergeTracks([track(1)], [track(1), track(2)]).map((t) => t.id)).toEqual([track(1).id, track(2).id]);
   });
 });

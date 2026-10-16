@@ -119,3 +119,24 @@ describe('ClipboardWatcher with an asynchronous reader', () => {
     watcher.stop();
   });
 });
+
+describe('ClipboardWatcher with Spotify links', () => {
+  it('reports a Spotify link once, whatever its tracking parameters', () => {
+    let text = '';
+    const onLink = vi.fn();
+    const watcher = new ClipboardWatcher(() => text, onLink, 60_000);
+    watcher.start();
+    for (const value of [
+      'https://open.spotify.com/track/3XmwAZpIMNpTJy8faw3ajD?si=one',
+      'other',
+      'https://open.spotify.com/track/3XmwAZpIMNpTJy8faw3ajD?si=two',
+      'https://open.spotify.com/artist/3XmwAZpIMNpTJy8faw3ajD',
+    ]) {
+      text = value;
+      watcher.tick();
+    }
+    expect(onLink).toHaveBeenCalledTimes(1);
+    expect(onLink).toHaveBeenCalledWith('https://open.spotify.com/track/3XmwAZpIMNpTJy8faw3ajD?si=one');
+    watcher.stop();
+  });
+});
